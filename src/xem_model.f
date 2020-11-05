@@ -135,17 +135,12 @@
       x2=0.9                    !x1<=x<x2 --> smooth transition from emc corrected ld2 to donals smearing
 !      e=5.766!15
 
-      open(unit=11,file='./input/compare_d_h.dat', status
+      open(unit=11,file='./input/helium3.inp', status
      +  ='old')
       write(*,*) 'opened file'
 
  40   READ(11,*,IOSTAT=EOF) e,ep,theta,a,z
         if(eof.ge.0) then
-c           if (a.eq.64.0) write (*,*) 'doing copper' , e,ep,theta,a,z,cs,cs_err
-c           if (z.eq.20.0) then
-c              z=29.0
-c              a=64.0
-c           endif
            n=a-z
 c        write(*,*) e,ep,theta,a,z
         PMAX = 2.5*PFERMI(int(a))
@@ -384,67 +379,7 @@ c       write (*,*) 'Before COR ', sig_qe
         endif
 c        write (*,*) 'Sending back, QE ', sig_qe
       end
-!-----------------------------------------------------------------------------
-	subroutine y_calc(e1,e2,theta,m1,es,y)
 
-
-
-	implicit none
-
-        logical y_calc_ok
-	real*8 e1,e2,theta,m1,m_rec,es,y
-	real*8 m2,w,th,q4_2,q2,q
-	real*8 pp2
-	real*8 temp,coeff_a,coeff_b,coeff_c,root2
-
-	include 'constants_dble.inc'
-
-C ============================ Executable Code =================================
-
-	y_calc_ok = .false.			!assume failure
-
-C Compute kinematics
-        m_rec=nuc_mass
-	m2 = m1 + es - m_rec			!Mass of (A-1) system
-	w = e1 - e2	    			!Energy loss
-!	th = theta*d_r				!Theta in radians
-        th=theta
-!        write(*,*) 'okay we have', e1, 21, theta,m1, es
-	q4_2 = 4.*e1*e2*(sin(th/2.))**2.	!4-momentum transfer squared
-	q2 = q4_2 + w*w				!3-momentum    "        "
-	q  = sqrt(q2)
-
-C Compute approximate value for k_perp.
-
-! K_perp now suppressed since two parameters M_rec and E_sep make it
-! entirely irrelevent.
-
-C$$$	a = m1/m_p				!Approximate value for A.
-C$$$	pf = .22*(1.-exp(-a/8.)) + .04
-C$$$	pp2 = pf**2.
-
-	pp2 = 0.				!Suppress k_perp.
-
-        y=0.
-C Compute terms in quad. formula.
-
-	temp = q2 + m_rec**2 - m2*m2 - (m1 + w)**2
-	coeff_a = 4.*(q2 - (m1 + w)**2.)
-	coeff_b = 4.*q*temp
-	coeff_c = temp**2. - 4.*(m2*m2 + pp2)*(m1 + w)**2.
-
-C If no real solution, return ERROR.
-
-	root2 = coeff_b**2. - 4.*coeff_a*coeff_c
-	if (root2.lt.0..or.coeff_a.eq.0.) return
-
-C Otherwise, return Y, and SUCCESS.
-
-	y = (-coeff_b - sqrt(root2))/(2.*coeff_a)
-
-	y_calc_ok = .true.
-
-	end
 !---------------------------------------------------------------------
 
       real*8 FUNCTION YSCALE(E,EP,THR,A,EPS)
@@ -453,7 +388,6 @@ C Otherwise, return Y, and SUCCESS.
       real*8 E, EP,THR,A, NU,W,WP,AG,BG,PART1,PART2,PART3,EPS,QSQ,CG
       real*8 backup,RAD
       real*8 qv2
-
 
       yscale = 0.0
                                 !write (6,*) 'in y scale'
@@ -520,24 +454,7 @@ C Otherwise, return Y, and SUCCESS.
       RETURN
       END
 
-       SUBROUTINE CALC_EP_FROM_Y(E,Y,THR,A,EPS,EP)
-      IMPLICIT NONE
-      INCLUDE 'constants_dble.inc'
-      real*8 E,Y,THR,A,EPS,EP,AVAR,BVAR,CVAR,MT,MD,BETA,X,EP2
-      MT = A*NUC_MASS
-      MD = (A-1)*NUC_MASS
-      X = E+MT-EPS-SQRT(MD**2+Y**2)
-      BETA = 0.5*(X**2-NUC_MASS**2-Y**2-E**2)
-      AVAR = (-E*COS(THR)+X)**2-Y**2
-      BVAR = 2*(Y**2*E*COS(THR)-BETA*(-E*COS(THR)+X))
-      CVAR = BETA**2-E**2*Y**2
-      if (Y.LE.0)THEN
-         EP = (-BVAR+SQRT(BVAR**2-4*AVAR*CVAR))/(2*AVAR)
-      ELSE
-         EP = (-BVAR-SQRT(BVAR**2-4*AVAR*CVAR))/(2*AVAR)
-      ENDIF
-                                !write (6,*) 'the other root is ', ep2
-      END
+
 
       subroutine sig_bar_df(e1,e2,theta,pl,pt,sig_p,sig_n)
 C+______________________________________________________________________________
@@ -646,410 +563,9 @@ C DeForest cross sections.
 	sig_p = sig_mott*sig_p/(en_f*e_bar)
 	sig_n = sig_mott*sig_n/(en_f*e_bar)
 
-
 !        write(28,*) 'returning from sigbar', e2, th,sig_p,sig_n, pl,pt
         return
         end
-
-      subroutine y_w (e1, e2, thr,y_ww)
-!     from paper by Gurvitz
-
-      implicit none
-      include 'constants_dble.inc'
-      real*8 e1, e2, thr, y_ww, q3v, qsq, nu
-
-      qsq=4*e1*e2*(sin(thr/2))**2
-      nu=e1-e2
-      q3v=sqrt(qsq+nu**2)
-
-      y_ww=0.5*(-q3v+nu*sqrt(1+4*nuc_mass**2/qsq))
-      return
-      end
-
-c-------------------------------------------------------------------------------------------------
-
-	real*8 function emc_func_xem_aji(x,A) ! now compute the emc effect from our own fits.
-        real*8 x,a
-	real*8 emc
-
-	if(A.eq.3) then
-
-           if (x.lt.1.0) then
-
-	      emc = 3.60574
-	1	   -17.9930*x
-	2	   +38.5132*x**2
-	3	   -7.30356*x**3
-	4	   -71.4791*x**4
-	5	   +83.6995*x**5
-	6	   -27.5481*x**6
-
-	   endif
-
-	else if(A.eq.4) then
-	   if (x.lt.1.0) then
-
-	      emc = 4.0905
-	1	   -20.5864*x
-	2	   +41.1811*x**2
-	3	   -4.62533*x**3
-	4	   -74.9766*x**4
-	5	   +79.3210*x**5
-	6	   -22.8134*x**6
-
-
-	   endif
-
-
-	else if(A.eq.9) then
-	   if (x.lt.1.0) then
-
-	      emc = 4.39669
-	1	   -21.8919*x
-	2	   +41.8461*x**2
-	3	   -2.69928*x**3
-	4	   -75.3117*x**4
-	5	   +75.1341*x**5
-	6	   -19.8517*x**6
-
-
-	   endif
-
-
-	else if(A.eq.12) then
-	   if (x.lt.1.0) then
-
-	      emc = 4.18521
-	1	   -20.8696*x
-	2	   +40.8226*x**2
-	3	   -3.07714*x**3
-	4	   -74.6169*x**4
-	5	   +74.8572*x**5
-	6	   -19.5719*x**6
-
-	   endif
-
-
-
-	else if((A.eq.64).or.(A.eq.56)) then
-	   if (x.lt.1.0) then
-
-	      emc = 4.01755
-	1	   -19.8687*x
-	2	   +39.0684*x**2
-	3	   -4.74309*x**3
-	4	   -71.9124*x**4
-	5	   +78.8172*x**5
-	6	   -23.8254*x**6
-
-
-	   endif
-
-
-	else if(A.eq.197) then
-
-	   if (x.lt.1.0) then
-
-	      emc = 4.20323
-	1	   -21.0955*x
-	2	   +40.3644*x**2
-	3	   -2.65750*x**3
-	4	   -73.9456*x**4
-	5	   +75.4186*x**5
-	6	   -20.7732*x**6
-
-
-
-	   endif
-	else
-        write(*,*) '** in sigmodel_calc, emc fit not valid', A
-	   stop
-	endif
-!        write(*,*) 'returning from emc with ', x, emc
-	emc_func_aji= emc
-	return
-	end
-c-----------------------------------------------------------------------------------------------
-c for now  only do he4,be,c,cu
-
-	subroutine highx_cor(anuc,x,cor)
-
-	real*8 x,cor,anuc
-
-         if(anuc.eq.3) then
-	   if ((x.gt.0.9).and.(x.lt.1.4)) then
-	    cor= -0.908273 + (4.13702*x) -(2.11462*x**2)
-	   elseif (x.ge.1.4) then
-	      cor=0.74
-	   endif
-
-        elseif(anuc.eq.4) then
-	   if ((x.gt.0.9).and.(x.lt.1.17)) then
-	      cor= 3.24553 - (3.47244*x) +  (1.11309*x**2)
-	   elseif (x.ge.1.17) then
-	      cor=0.7
-	   endif
-	elseif(anuc.eq.9) then
-
-	   if ((x.gt.0.9).and.(x.lt.1.26)) then
-	      cor= 0.779378 + (1.84808*x) - (1.7588*x**2)
-	   elseif (x.ge.1.26) then
-	      cor=0.3
-	   endif
-
-	elseif(anuc.eq.12) then
-	   if ((x.gt.0.9).and.(x.lt.1.26)) then
-	      cor=  1.09301 + (0.798708*x) - (0.939027*x**2)
-	   elseif (x.ge.1.26) then
-	      cor=0.55
-	   endif
-
-        elseif((anuc.eq.64).or.(anuc.eq.56)) then
-	   if ((x.gt.0.9).and.(x.lt.1.3)) then
-	      cor=  3.3275 - (3.94771*x) + (1.496*x**2)
-	   elseif (x.ge.1.3) then
-	      cor=0.68
-	   endif
-
-          elseif(anuc.eq.197) then
-	   if ((x.gt.0.9).and.(x.lt.1.3)) then
-           cor= -0.389135+ (3.08065*x)- (1.66297*x**2)
-	   elseif (x.ge.1.3) then
-	      cor=0.8
-	   endif
-
-	else
-	   cor=1.
-	endif
-
-	return
-	end
-
-c-----------------------------------------------------------------------------------------------
-
-      subroutine dis_highx_cor_argonne(anuc,x,cor)
-      implicit none
-      real*8 x,cor,anuc, frac,xlow1,xhigh1,xlow2,xhigh2
-
-      xlow1=0.9
-      xhigh1=0.95
-
-      xlow2=1.3
-      xhigh2=1.4
-
-      frac=1.
-      cor=1.
-      if(anuc.eq.3) then
-        cor=-2.12112*x+3.03449
-        if((x.ge.xlow1).and.(x.le.xhigh1)) then
-          frac = (x-xlow1)/(xhigh1-xlow1)
-        endif
-        cor=frac*cor+1.-frac
-
-
-      elseif(anuc.eq.4) then
-        cor=-1.76466*x+2.68897
-        if((x.ge.xlow1).and.(x.le.xhigh1)) then
-          frac = (x-xlow1)/(xhigh1-xlow1)
-        endif
-        cor=frac*cor+1.-frac
-
-      elseif(anuc.eq.9) then
-        cor=-1.8383*x+2.77253
-        if((x.ge.xlow1).and.(x.le.xhigh1)) then
-          frac = (x-xlow1)/(xhigh1-xlow1)
-        endif
-        cor=frac*cor+1.-frac
-
-      elseif(anuc.eq.12) then
-        cor=-1.32193*x+2.28754
-        if((x.ge.xlow1).and.(x.le.xhigh1)) then
-          frac = (x-xlow1)/(xhigh1-xlow1)
-        endif
-!     if((x.ge.xlow2).and.(x.le.xhigh2)) then
-!     frac = (x-xlow2)/(xhigh2-xlow2)
-!     frac=1.-frac
-!     endif
-!     if(x.gt.xhigh2) frac=0.
-        cor=frac*cor+1.-frac
-!     write(21,*) 'cor is ', cor, x
-      elseif((anuc.eq.64).or.(anuc.eq.56)) then
-!     cor=-2.21331*x+3.02106
-        cor=1.
-        cor=-1.46912*x+2.31581
-!        if((x.ge.xlow1).and.(x.le.xhigh1)) then
-!          frac = (x-xlow1)/(xhigh1-xlow1)
-!        endif
-!        cor=frac*cor+1.-frac
-!     cor=1.0
-      elseif(anuc.eq.197) then
-        cor= -1.72192*x+2.65671
-        if((x.ge.xlow1).and.(x.le.xhigh1)) then
-          frac = (x-xlow1)/(xhigh1-xlow1)
-        endif
-        cor=frac*cor+1.-frac
-
-      else
-        cor=1.
-      endif
-
-      if(cor.lt.0.4) cor=0.4
- !     write (*,*) 'returning ', cor
-
-      return
-      end
-c------------------------------------------------------------------------ !
-C     --------Idea's same as aji's, but I did the fit to my x-binned
-C     data
-!  fort.targ_delta9_allresolved[_andinx]
-c-----------------------------------------------------------------------------------------------
-	subroutine global_cor(anuc,x,cor)
-        implicit none
-	real*8 x,cor,anuc,x1,x2,x3,x4,frac, poly_fit
-        real*8 cor_x_lt_x1, cor_x_gt_x4, cor_polynom
-
-	if(anuc.eq.2) then
-
-           x1=0.375
-	   x2=0.4
-	   x3=1.9
-	   x4=2.0
-
-	elseif(anuc.eq.3) then
-
-           x1=0.775
-	   x2=0.8
-	   x3=1.475
-	   x4=1.5
-
-	elseif(anuc.eq.4) then
-
-           x1=0.775
-	   x2=0.8
-	   x3=1.475
-	   x4=1.5
-
-	elseif(anuc.eq.9) then
-
-          x1=0.775
-          x2=0.8
-          x3=2.475
-          x4=2.5
-
-	elseif(anuc.eq.12) then
-
-          x1=0.775
-          x2=0.8
-          x3=1.475
-          x4=1.5
-
-	elseif((anuc.eq.64).or.(anuc.eq.56)) then
-
-          x1=0.775
-          x2=0.8
-          x3=1.975
-          x4=2.0
-
-	elseif(anuc.eq.197) then
-          x1=0.775
-          x2=0.8
-          x3=1.475
-          x4=1.5
-
- 	else
-
-	   write(*,*) '** in global_cor, unknown target', anuc
-	   stop
-
-	endif
-
-
-	if (x.lt.x1) then
-	   cor=1.0
-	elseif ((x.ge.x1).and.(x.lt.x2)) then
-	   frac = (x-x1)/(x2-x1)
-	   cor= poly_fit(anuc,x)*frac + (1.-frac)
-	elseif((x.ge.x2).and.(x.lt.x3)) then
-	   cor= poly_fit(anuc,x)
-	elseif ((x.ge.x3).and.(x.lt.x4)) then
-	   frac = (x-x3)/(x4-x3)
-	   cor= poly_fit(anuc,x4) *frac + poly_fit(anuc,x) *(1.-frac)
-	elseif(x.ge.x4) then
-	   cor=poly_fit(anuc,x4)
-	endif
-
-
-	return
-	end
-
-
-      real*8 function poly_fit(anuc,x)
-      implicit none
-      real*8 x, anuc, p0, p1, p2, p3, p4
-
-
-	if(anuc.eq.2) then
-          p4 = 1.47784948218043
-          p3 = -5.23655714293828
-          p2 = 6.21510111110596
-          p1 = -3.02812744454624
-          p0 = 1.52711763635932
-
-	elseif(anuc.eq.3) then
-          p4 = 1.02772560984094
-          p3 = -6.08172162949192
-          p2 = 12.7964815600646
-          p1 = -11.5578850603455
-          p0 = 4.76700715451466
-
-	elseif(anuc.eq.4) then
-          p4 = 1.59668103932533
-          p3 = -8.95906115175537
-          p2 = 18.1757099596398
-          p1 = -15.9580650263325
-          p0 = 6.10452712930702
-
-	elseif(anuc.eq.9) then
-          p4 = 0.336881628279981
-          p3 = -2.47699274917202
-          p2 = 6.42234681736013
-          p1 = -7.03843528805277
-          p0 = 3.74651945659282
-
-	elseif(anuc.eq.12) then
-          p4 = 0.774457758375471
-          p3 = -4.77263675262629
-          p2 = 10.6023709231639
-          p1 = -10.1237696277791
-          p0 = 4.49996964307447
-
-	elseif((anuc.eq.64).or.(anuc.eq.56)) then
-          p4 = 0.947130573149562
-          p3 = -5.56050176808789
-          p2 = 11.8522362056345
-          p1 = -11.0423937551899
-          p0 = 4.75470423802242
-
-	elseif(anuc.eq.197) then
-          p4 = 10.1348736361699
-          p3 = -49.4362625708223
-          p2 = 88.9917791787406
-          p1 = -70.2751939566697
-          p0 = 21.4898267656425
-
- 	else
-
-	   write(*,*) '** in poly_fit, unknown target'
-	   stop
-
-	endif
-
-        poly_fit=p4*x**4+p3*x**3+p2*x**2+p1*x+p0
-
-
-
-
-      end
 
 !-----------------------------------------------------------------------------------------------------
 
@@ -1149,71 +665,6 @@ c-------------------------------------------------------------------------------
 	return
 	end
 c--------------------------------------------------------------------------------
-	real*8 function emc_func_xem_prethesis(x,A) ! now compute the emc effect from our own fits.
-	implicit none
-        real*8 x,a,xtmp
-	real*8 emc
-
-
-c	if (x.le.1.0) then
-	if(x.le.0.9) then
-	   xtmp = x
-	else
-	   xtmp = 0.9
-	endif
-
-	   if(A.eq.2) then
-	      emc =1.0
-C it 2
-	      if(xtmp.lt.0.2) then
-		 emc=1.06
-	      else
-		 emc = 0.79515 +1.9777*xtmp - 3.9724*xtmp**2 -0.66967*xtmp**3
-	1	   +8.3082*xtmp**4 - 5.5263*xtmp**5
-	      endif
-CHe3***********************************************************************************
-	   else if(A.eq.3) then
-C it 2
-	      emc = 1.0118 +1.1029*xtmp -2.5081*xtmp**2 - 0.22033*xtmp**3
-	1	   + 4.8120*xtmp**4 - 3.2865*xtmp**5
-CHe4***********************************************************************************
-	   else if(A.eq.4) then
-C it2
-	      emc = 0.84622 + 2.2462*xtmp - 4.7909*xtmp**2
-	1	   + 0.065713*xtmp**3 + 7.6154*xtmp**4 - 5.2029*xtmp**5
-
-	   else if(A.eq.9) then
-C it 2
-	      emc = 0.80887 + 3.9354*xtmp - 8.6056*xtmp**2 -0.16342*xtmp**3
-	1	   + 14.074*xtmp**4 -9.3065*xtmp**5
-	   else if(A.eq.12) then
-C it 2
-	      emc = 0.8279 + 3.5070*xtmp -7.5807*xtmp**2
-	1	   -0.60935*xtmp**3 +13.081*xtmp**4 -8.5083*xtmp**5
-	   else if(a.eq.27) then
-	      emc = 0.98645 + 3.0385*xtmp - 22.072*xtmp**2 + 74.981*xtmp**3
-	1	   - 132.97*xtmp**4 + 113.06*xtmp**5 -35.612*xtmp**6
-	   else if((A.eq.64).or.(a.eq.63).or.(a.eq.56)) then
-C it 2
-	      emc = 1.1075 + 2.7709*xtmp - 6.5395*xtmp**2 -0.46848 *xtmp**3
-	1	   +10.534*xtmp**4 - 6.6257*xtmp**5
-
-	   else if(A.eq.197) then
-C it 2
-	      emc = 1.1404 + 4.0660*xtmp -10.318*xtmp**2 -1.9036*xtmp**3
-	1	   + 21.969*xtmp**4 - 14.461*xtmp**5
-
-
-	   else
-	      write(*,*) '** in emc_func_xem, unknown target', a
-	      stop
-	   endif
-
-
-	emc_func_xem_prethesis= emc
-	return
-	end
-
 
       real*8 function tail_cor(x,a)
       implicit none
@@ -1274,28 +725,7 @@ C it 2
       return
       end
 
-      real*8 FUNCTION SIG_EL(E,EP,THR,A,Z,rosen_p,rosen_n,mott)
-      IMPLICIT NONE
-      INCLUDE 'constants.inc'
-      real*8 E, EP, THR,MOTT,ELASTIC,GEP,GMP,TAU,W1,W2,QSQ,A,Z,N
-      real*8 ROSEN_N,ROSEN_P,CS_MOTT,factor,factor2,factor3
-      QSQ = 4*E*EP*(SIN(THR/2))**2
-      N = A-Z
-                                !write(6,*) 'in sigel, Z N A', Z,N,A
-      MOTT=CS_MOTT(THR,E)
-                                !factor = 0.524275
-      factor = sqrt(qsq + nuc_mass**2)/nuc_mass ! epf/m
-      factor3=(1+qsq*(tan(thr/2))**2/(2*nuc_mass**2))
-      ELASTIC= MOTT!/factor
-!      write (6,*) 'My elastic is ', ELASTIC
-      factor2 = (1+2*E*(sin(THR/2))**2/nuc_mass)
-!      write(*,*) 'factor 2 is ', factor2
-      CALL ROSEN(ELASTIC,QSQ,THR,ROSEN_N,ROSEN_P)
-      SIG_EL = N*ROSEN_N+Z*ROSEN_P
-                                !write (6,*) 'factor and factor 2 and factor3', factor,factor2,factor3
-!      write (6,*) 'sig el is ', sig_el
-      RETURN
-      END
+
       SUBROUTINE ROSEN(CS_NS,QSQ,THR,CSN,CSP)
       IMPLICIT NONE
       real*8 QSQ,GEP,GMP,GEN,GMN,KP,TAU,H(0:5),gep1,gmp1,gen1,gmn1
@@ -1358,112 +788,78 @@ C it 2
 !      write (6,*)' SIGP, SIGN', CSP,CSN
       END
 
-      real*8 function get_alpha_tn(e,ep,thr)
 
-      include 'constants.inc'
-      real*8 e, ep, thr
-
-
-      q2=4*e*ep*(sin(thr/2))**2
-      nu=e-ep
-      x=q2/2/nuc_mass/nu
-      q3v=sqrt(q2+q2**2/4/nuc_mass**2/x**2)
-      q_minus=nu-q3v
-      inv_mass=sqrt(4*nuc_mass**2+4*nu*nuc_mass-q2)
-      get_alpha_tn=2-(q_minus+2*nuc_mass)/(2*nuc_mass)*(1+sqrt(inv_mass
-     +  **2-4*nuc_mass**2)/inv_mass)
-
-
-
-      end
-
-  !this is the postthesis iteration of daves
+!this is the postthesis iteration of daves
 	real*8 function emc_func_xem(x,A) ! now compute the emc effect from our own fits.
 	implicit none
         integer a
         real*8 x,xtmp
 	real*8 emc
 
-
-c	if (x.le.1.0) then
 	if(x.le.0.9) then
 	   xtmp = x
 	else
 	   xtmp = 0.9
 	endif
 
-	emc =1.0
-CDeuterium******************************************************************************
+CDeuterium******************************************************************
 	if(A.eq.2) then
-C it 2
-c	   if(xtmp.lt.0.2) then
-c	      emc=1.06
-c	   else
-c	      emc = 0.79515 +1.9777*xtmp - 3.9724*xtmp**2 -0.66967*xtmp**3
-c	1	   +8.3082*xtmp**4 - 5.5263*xtmp**5
-c	   endif
-c	   emc = emc*0.96689
-c it 3
-c	   emc = 0.70443 +2.3742*xtmp - 4.6566*xtmp**2 -0.78540*xtmp**3
-c	1	+9.3838*xtmp**4 - 6.1256*xtmp**5
+C iteration 1 Casey
            emc = 1
-CHe3***********************************************************************************
+
+CHe3************************************************************************
 	else if(A.eq.3) then
-C it 2
-c	      emc = 1.0118 +1.1029*xtmp -2.5081*xtmp**2 - 0.22033*xtmp**3
-c	1	   + 4.8120*xtmp**4 - 3.2865*xtmp**5
-C it 3
-	   emc = 0.92170 +1.7544*xtmp -3.7324*xtmp**2 - 0.24293*xtmp**3
-	1	+ 6.7613*xtmp**4 - 4.6089*xtmp**5
-CHe4***********************************************************************************
+C iteration 1 Casey
+c           emc = 1
+           emc = 0.81349 + 4.17691*xtmp -21.00865*xtmp**2 + 
+	1        50.24201*xtmp**3 -57.67029*xtmp**4 + 25.22827*xtmp**5
+
+CHe4************************************************************************
 	else if(A.eq.4) then
-C it2
-c            emc = 0.84622 + 2.2462*xtmp - 4.7909*xtmp**2
-c	1	   + 0.065713*xtmp**3 + 7.6154*xtmp**4 - 5.2029*xtmp**5
-C it3
-c	   emc = 0.70050 + 3.1241*xtmp - 6.1738*xtmp**2
-c	1	- 0.049988*xtmp**3 + 9.3053*xtmp**4 - 6.1348*xtmp**5
-C Be**********************************************************************************
+C iteration 1 Casey
+c           emc = 1
+           emc = 0.76458 + 4.15387*xtmp -20.56000*xtmp**2 + 
+	1        49.19713*xtmp**3 -56.55423*xtmp**4 + 24.57040*xtmp**5
+
+C Be************************************************************************
 	else if(A.eq.9) then
-C it 2
-c	      emc = 0.80887 + 3.9354*xtmp - 8.6056*xtmp**2 -0.16342*xtmp**3
-c	1	   + 14.074*xtmp**4 -9.3065*xtmp**5
-C it 3
-c	   emc = 0.46324 + 6.1220*xtmp - 12.184*xtmp**2 -1.0956*xtmp**3
-c	1	+ 20.316*xtmp**4 -12.899*xtmp**5
-           emc = 1
-C Carbon**********************************************************************************
+C iteration 1 Casey
+c           emc = 1
+           emc = 0.75577 + 6.31620*xtmp -31.22099*xtmp**2 + 
+	1        73.30890*xtmp**3 -83.58729*xtmp**4 + 36.42793*xtmp**5
+
+C Carbon********************************************************************
 	else if(A.eq.12) then
-C it 2
-c         emc = 0.8279 + 3.5070*xtmp -7.5807*xtmp**2
-c	1	   -0.60935*xtmp**3 +13.081*xtmp**4 -8.5083*xtmp**5
-C it 3
-c	   emc = 0.63653 + 4.6458*xtmp -9.2994*xtmp**2
-c	1	-1.2226*xtmp**3 +16.157*xtmp**4 -10.236*xtmp**5
-           emc = 1
-C Al**********************************************************************************
+C iteration 1 Casey
+c           emc = 1
+           emc = 0.70352 + 6.44515*xtmp -31.99850*xtmp**2 + 
+	1        75.42336*xtmp**3 -86.47596*xtmp**4 + 37.81601*xtmp**5
+
+C Al************************************************************************
 	else if(a.eq.27) then
-c	   emc = 0.98645 + 3.0385*xtmp - 22.072*xtmp**2 + 74.981*xtmp**3
-c	1	- 132.97*xtmp**4 + 113.06*xtmp**5 -35.612*xtmp**6
-           emc = 1
-C Copper**********************************************************************************
-	else if((A.eq.64).or.(A.eq.56)) then
-C it 2
-c	      emc = 1.1075 + 2.7709*xtmp - 6.5395*xtmp**2 -0.46848 *xtmp**3
-c	1	   +10.534*xtmp**4 - 6.6257*xtmp**5
-c it 3
-c	   emc = 0.58372 + 6.0358*xtmp - 11.988*xtmp**2 -1.0211*xtmp**3
-c	1	+18.567*xtmp**4 - 11.482*xtmp**5
-           emc = 1
-C Gold**********************************************************************************
+C iteration 1 Casey
+c           emc = 1
+           emc = 0.63596 + 6.59120*xtmp -32.87832*xtmp**2 + 
+	1        76.97413*xtmp**3 -88.46550*xtmp**4 + 39.04195*xtmp**5
+
+C Copper********************************************************************
+	else if(A.eq.64) then
+C iteration 1 Casey
+c           emc = 1
+           emc = 0.62897 + 9.34351*xtmp -46.33351*xtmp**2 + 
+	1        107.57064*xtmp**3 -122.72402*xtmp**4 + 54.02095*xtmp**5
+
+C Copper********************************************************************
+        else if(A.eq.56) then
+C iteration 1 Casey
+      emc = 1
+
+C Gold**********************************************************************
 	else if(A.eq.197) then
-C it 2
-c	      emc = 1.1404 + 4.0660*xtmp -10.318*xtmp**2 -1.9036*xtmp**3
-c	1	   + 21.969*xtmp**4 - 14.461*xtmp**5
-C it 3
-c	   emc = 0.44132 + 8.1232*xtmp -16.141*xtmp**2 -5.6562*xtmp**3
-c	1	+ 35.606*xtmp**4 - 22.008*xtmp**5
-           emc = 1
+C iteration 1 Casey
+c           emc = 1
+           emc = 0.59609 + 11.06185*xtmp -54.73150*xtmp**2 + 
+	1        125.84238*xtmp**3 -142.97502*xtmp**4 + 63.04760*xtmp**5
 
 	else
 	   write(*,*) '** in emc_func_xem, unknown target',a
@@ -1473,61 +869,3 @@ c	1	+ 35.606*xtmp**4 - 22.008*xtmp**5
 	emc_func_xem= emc
 	return
 	end
-
-
-      subroutine donal_rosen(e0,ep,th,ig,sigep,sigen,sigmot)
-      implicit none
-      real*8 e0, ep, th, ig, sigep, sigen, thr, rads, rmp,cs2
-      real*8 s2, t2, frec, elos, qq, hbarc,fscnst, tau, qqf, gep2
-      real*8 gmp2, gen2, gmn2, sigmot, c1, c2, c3, d1, d2, d3
-      real*8 gen, gmn, gep, gmp
-
-!      ig=dble(13.0)
-!      write (*,*) 'got ', e0, ep, th, ig
-      rmp =.93827
-      rads = 3.14159/180.
-      thr = th*rads/2.
-
-      cs2 = (cos(thr))**2
-      s2 = (sin(thr))**2
-      t2 = (tan(thr))**2
-      frec = 1. + 2.*e0*s2/rmp
-!     ef = e0/frec
-      elos = e0-ep
-      qq = 4.*e0*ep*s2
-      hbarc = 0.1973289
-      fscnst = 1./137.02
-
-      tau=qq/(4.*(rmp)**2)
-
-      qqf =  qq/hbarc**2
-
-      call nform(dble(13.0),qq,gep,gen,gmp,gmn)
-      gep2 = gep**2
-
-      gmp2 = gmp**2
-
-      gen2 = gen**2
-
-      gmn2 = gmn**2
-
-      sigmot =    (fscnst/(2.*e0*s2))**2*cs2
-      sigmot = sigmot * 1.0e4 * hbarc**2 !micro barns
-      c1=gep2
-
-      c2=gmp2*tau
-
-      c3=c2*2.*(1.+tau)*t2
-
-      sigep = sigmot*(c1+c2+c3)/(1.+tau)
-c
-      d1 = gen2
-
-      d2 = gmn2*tau
-
-      d3 = d2*2.*(1. + tau)*t2
-
-      sigen = sigmot*(d1+d2+d3)/(1.+tau)
-
-      return
-      end
