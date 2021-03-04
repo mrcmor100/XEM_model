@@ -252,7 +252,7 @@
 !	    write(*,*)' passin in ', rq2, wp**2
 	    call F1F2IN20(dble(0.),dble(1.),dble(rq2),dble(wp**2),w11,w22)
 	    if((w11.eq.0).or.(w22.eq.0)) then
-	      write(*,*) 'got w11 and w22', w11, w22
+c	      write(*,*) 'got w11 and w22', w11, w22
 	      goto 10
 	    else
 !	      write(*,*) ' non zero', w11, w22
