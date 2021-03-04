@@ -1,4 +1,4 @@
-      program xem_model_with_special_sauce
+      subroutine xem_model(e,ep,theta,a,z,sigdis_new,sig_qe_new)
       implicit none
       include 'constants_dble.inc'
       real*8 e, ep, theta, q3v, qsq,nu,thr,cs,cs_err,k
@@ -28,10 +28,12 @@
 
       integer eof,i
 
-      open(unit=14,file='output/fort.14', status='REPLACE')
+!      open(unit=14,file='output/fort.14', status='REPLACE')
 !      open(unit=22,file='output/fort.22', status='REPLACE')
 !      open(unit=24,file='output/fort.24', status='REPLACE')
 !      open(unit=28,file='output/fort.28', status='REPLACE')
+
+      a=4
 
       do i=1,197
          pfermi(i)=.2
@@ -135,11 +137,11 @@
       x2=0.9                    !x1<=x<x2 --> smooth transition from emc corrected ld2 to donals smearing
 !      e=5.766!15
 
-      open(unit=11,file='./input/helium3.inp', status
-     +  ='old')
-      write(*,*) 'opened file'
+c      open(unit=11,file='./input/helium3.inp', status
+c     +  ='old')
+c      write(*,*) 'opened file'
 
- 40   READ(11,*,IOSTAT=EOF) e,ep,theta,a,z
+c 40   READ(11,*,IOSTAT=EOF) e,ep,theta,a,z
         if(eof.ge.0) then
            n=a-z
 c        write(*,*) e,ep,theta,a,z
@@ -185,16 +187,16 @@ c        write(24, 2024) x, sigdis_raw, emc_corr, corfac
  2004  format (8(E13.5,1x))
  2005  format (3(I4, 1x),13(E13.5,1x))
       if(y.ne.0) then
-        write(14,2002) y,a,z, theta,ep,x ,sigdis_new,sig_qe_new
+c        write(14,2002) y,a,z, theta,ep,x ,sigdis_new,sig_qe_new
       else   !comment out under normal circumstances
-        write(14,2002) y,a,z, theta,ep,x ,sigdis_new,sig_qe_new
+c        write(14,2002) y,a,z, theta,ep,x ,sigdis_new,sig_qe_new
       endif
 
-      goto 40
+c      goto 40
       endif !if file has stuff
-      close(11);
+c      close(11);
 
-
+      return
 
       end
 

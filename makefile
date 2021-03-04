@@ -7,7 +7,7 @@
   FFLAG1=$(FFLAGS) -c
 #  GFORTRAN :=$(ABSOFT)/bin/gfortran
   GFORTRAN :=gfortran
-  direct=/group/c-xem2/cmorean/SCGSR/cs_model/
+  direct=/group/c-xem2/cmorean/SCGSR/xem_model/
 #CERN_ROOT=/usr/local/cern/pro
 #CERN_ROOT=/usr/lib/cernlib/2006
 CERN_ROOT = /apps/cernlib/i386_rhel3/2003
@@ -16,7 +16,6 @@ CERNLIBS = -L$(CERN_ROOT)/lib -lpawlib -lgraflib -lgrafX11 -lpacklib -lmathlib
 
 xemmodel:  xem_model.o nform.o bdisnew4he3.o f1f220.o ./src/constants.inc
 	gfortran -g -o XEM_model xem_model.o nform.o bdisnew4he3.o f1f220.o
-	rm *.o
 xem_model.o: ./src/xem_model.f
 	gfortran -c -ffixed-line-length-none ./src/xem_model.f
 nform.o: ./src/nform.f
