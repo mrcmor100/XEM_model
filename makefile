@@ -15,6 +15,7 @@ xemmodel:  xem_model.o nform.o smear4all.o f1f221.o sig_bar_df.o ./src/constants
 	gfortran -g -o XEM_model xem_model.o nform.o smear4all.o f1f221.o sig_bar_df.o
 	$(OTHERLIBS)
 	rm *.o
+
 xem_model.o: ./src/xem_model.f
 	gfortran -c -ffixed-line-length-none ./src/xem_model.f
 nform.o: ./src/nform.f
