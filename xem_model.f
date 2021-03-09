@@ -64,15 +64,6 @@ CAM Main subroutine used in externals.
       endif
 c      write(236,*) A, Z, X, Y
 
- 2002 format (10(E13.5,1x))
-      if(y.ne.0) then
-         write(14,2002) y,a,z, THETA,EP,x ,sigdis_new,sig_qe_new
-      else       !comment out under normal circumstances
-         write(14,2002) y,a,z, THETA,EP,x ,sigdis_new,sig_qe_new
-      endif
-
-      call write_corrections()
-
       return
       end
 
@@ -99,7 +90,18 @@ CAM Calculate DIS using donal's smearing routine.
       qsq=4.0*e*ep*sin(thr/2)**2
       nu=e-ep
       x=qsq/2.0/nuc_mass/nu
+<<<<<<< f7e0ffcda06cc96c2eb90ee2c9c812056d04ae12
       WSQ = -qsq + nuc_mass**2 + 2.0*nuc_mass*nu
+=======
+
+      x1=0.8                    !x<x1 --> use emc corrected ld2
+      x2=0.9                    !x1<=x<x2 --> smooth transition from emc corrected ld2 to donals smearing
+
+      n=a-z
+c      write (*,*) 'New DiS SUB'
+      call sig_bar_df(e, ep, thr*180.0/pi, y,dble(0.0), sigma_p,
+     +  sigma_n)
+>>>>>>> Add most updated xem_model fortran code.  Abstract reading of E0, EP, THETA, A, Z into xem_model.
 
       PMAX=1.0
 
@@ -112,9 +114,26 @@ CAM Calculate DIS using donal's smearing routine.
             innp=10
          endif
 
+<<<<<<< f7e0ffcda06cc96c2eb90ee2c9c812056d04ae12
          CALL smear4all(E,EP,THR,dble(A),dble(Z),dble(N),eps,PMAX,
      +        dble(INNP),dble(INNT),f0,bigB,ag,bg,
      +        alpha1 ,SIGDIS)
+=======
+c         write(*,*) 'New Sub, passing variables', E,EP,THR,A,Z,N,EPS(a),
+c     +        PMAX,INNP,INNT,f0(a),bigB(a),ag(a),bg(a),alpha1(a)
+         CALL BDISNEW4HE3(E,EP,THR,dble(A),dble(Z),dble(N),EPS(a),PMAX,
+     +        dble(INNP),dble(INNT),f0(a),bigB(a),ag(a),bg(a),
+     +        alpha1(a) ,SIGDIS)
+
+         if (x.lt.x1) then
+            emc_corr = emc_func_xem(x,a)
+         elseif ((x.ge.x1).and.(x.lt.x2)) then
+            frac = (x-x1)/(x2-x1)
+            emc_corr = 1.0*frac + emc_func_xem(x,a)*(1.-frac)
+         elseif(x.ge.x2) then
+            emc_corr = 1.0
+         endif
+>>>>>>> Add most updated xem_model fortran code.  Abstract reading of E0, EP, THETA, A, Z into xem_model.
 
 CAM EMC_FUNC specific correction.
 CAM D2 set to F1F221.
@@ -143,6 +162,7 @@ CAM    Mott cross section
       subroutine sig_qe_calc(y, a, z, e, ep, thr, x, sig_qe)
       implicit none
       include 'constants_dble.inc'
+<<<<<<< f7e0ffcda06cc96c2eb90ee2c9c812056d04ae12
 
       COMMON /Y_SCALING/ ag, bg, bigB, f0, alpha1, pfermi, eps
       real*8 ag, bg, bigB, f0, alpha1, pfermi, eps
@@ -194,6 +214,82 @@ CAM tail_cor applied here
       sig_qe=sig_qe*corfact
 
       return
+=======
+      integer a,z
+      real*8 input, sig_qe, johns_fac
+      real*8 q4_sq, q3v, dwdy,thr, fact,nu
+      real*8 x, x_cor, corfact, my_frac, x_high, x_low
+      real*8 sigma_n, sigma_p, theta
+      real*8 y, e, ep, tail_cor
+      include 'model_constants.inc'
+
+        y=y*1000
+!        write(*,*) 'my params', f0(a), bigB(a), alpha1(a), ag(a), bg(a)
+        if(a.eq.2.) then
+          sig_qe = (f0(a)-bigB(a))*alpha1(a)**2*exp(-(ag(a)*y)**2)
+     +      /(alpha1(a)**2+y**2)+bigB(a)*exp(-bg(a)*abs(y))
+        else
+          sig_qe = (f0(a)-bigB(a))*alpha1(a)**2*exp(-(ag(a)*y)**2)
+     +      /(alpha1(a)**2+y**2)+bigB(a)*exp(-(bg(a)*y)**2)
+!       write(*,*) f0(a), ag(a), bg(a),bigB(a), alpha1(a)
+       endif
+        y=y/1000
+        johns_fac=1.
+        if (a.eq.3) then
+          johns_fac=max(1.,1.+y*1.4*2.5)
+        elseif (a.eq.4) then
+          johns_fac=max(1.,1.+y*1.4*1.75)
+        elseif (a.eq.12) then
+          johns_fac=max(1.,1.+y*1.4*2.5)
+        elseif ((a.eq.56).or.(a.eq.64)) then
+          johns_fac=max(1.,1.+y*1.4*3)
+        elseif (a.eq.197) then
+          johns_fac=max(1.,1.+y*1.4*4)
+        endif
+
+       sig_qe=johns_fac*sig_qe
+
+  	q4_sq = 4.*e*ep*sin(thr/2.)**2 		!4-mom. transf. squared.
+	nu = e-ep				!Energy loss
+	q3v = sqrt(q4_sq + nu**2)		!3-momentum transfer
+	dwdy = q3v/sqrt(nuc_mass**2+q3v**2+y**2+2.0*q3v*y)
+
+        call sig_bar_df(e, ep, thr*180/pi, y,dble(0.0), sigma_p, sigma_n)
+
+        fact = (Z*sigma_p+(A-Z)*sigma_n)/dwdy
+        sig_qe=sig_qe*fact*1000.
+
+	if(x.gt.2.0) then
+	  x_cor=2.0
+        else
+          x_cor=x
+	endif
+
+	if(a.eq.2) then
+	  x_low=1
+	  x_high=1.05
+	endif
+
+	if(a.gt.2) then
+	  if((a.eq.64).or.(a.eq.4).or.(a.eq.197).or.(a.eq.56)) then
+	    x_low=1.2
+	    x_high=1.4
+	  else
+	    x_low=1.4
+	    x_high=1.6
+	  endif
+	endif
+
+        corfact=1.
+	if((x.ge.(x_low))) then !.and.(A.eq.2)) then
+          corfact=tail_cor(x_cor,a)
+          if(x.lt.(x_high)) then
+	    my_frac=(x-x_low)/(x_high-x_low)
+            corfact=my_frac*corfact+(1.-my_frac)
+	  endif
+          sig_qe=sig_qe*corfact
+        endif
+>>>>>>> Add most updated xem_model fortran code.  Abstract reading of E0, EP, THETA, A, Z into xem_model.
       end
 
 !---------------------------------------------------------------------
@@ -209,6 +305,10 @@ CAM Function to determine Y.  Refer to John A's thesis
       NU = E-EP
       QSQ = 4*E*EP*(SIN(THR/2))**2
 
+<<<<<<< f7e0ffcda06cc96c2eb90ee2c9c812056d04ae12
+=======
+      qv2=qsq+nu**2
+>>>>>>> Add most updated xem_model fortran code.  Abstract reading of E0, EP, THETA, A, Z into xem_model.
       W = NU+A*NUC_MASS-EPS
       WP = W**2+((A-1)*NUC_MASS)**2-NUC_MASS**2
                                 !write (15,*) 'w, wp, qsq', w,wp,qsq
@@ -227,6 +327,25 @@ CAM Function to determine Y.  Refer to John A's thesis
          YSCALE = 1.E20
       endif
 
+<<<<<<< f7e0ffcda06cc96c2eb90ee2c9c812056d04ae12
+=======
+      RETURN
+      END
+
+
+      real*8 FUNCTION CS_MOTT(THETA,ESTART)
+      IMPLICIT NONE
+      INCLUDE 'constants_dble.inc'
+      real*8 THETA,ESTART,hbarc2
+
+      hbarc2=.38937966
+                                !ALPHA = 1/137.02
+      CS_MOTT = 0.1973289**2*1e10*(ALPHA**2)*(COS(THETA/2)**2)/(4*(ESTART**2)*(SIN(THETA/2))**4)
+ !     CS_MOTT = hbarc2*(ALPHA**2)*(cos(theta/2))**2/(4*(ESTART**2)*(SIN(THETA/2))**4)
+                                !(.197**2*1E10)*
+                                !(3.893869477*1E9)*
+                                !write(6,*)'in cs_mott, got ',cs_mott
+>>>>>>> Add most updated xem_model fortran code.  Abstract reading of E0, EP, THETA, A, Z into xem_model.
       RETURN
       END
 
@@ -399,6 +518,7 @@ C Get target specific stuff from lookup table.
          endif
       enddo
 
+<<<<<<< f7e0ffcda06cc96c2eb90ee2c9c812056d04ae12
       EPS = parmList(2)
       f0  =  parmList(3)
       bigB =  parmList(4)
@@ -451,11 +571,67 @@ c     + dhx_cor_xalt, dhx_cor_alt_val
          return			!Quit if couldn't find info.
       else if(.not.found.and. .not. first) then
          write(6,*) 'Something is wrong with default load!'
+=======
+      real*8 function tail_cor(x,a)
+      implicit none
+      integer a
+      real*8  x, aa, bb, cc, dd, ee, ff
+
+      aa=1.
+      bb=0.
+      cc=0.
+      dd=0.
+      ee=0.
+      ff=0.
+      if(a.eq.2) then
+        aa =  1.72816025139459
+        bb =  2.53114253906281
+        cc = -2.72505067059703
+        dd = -1.58637090989274
+        ee = -16.3972900673533
+
+      elseif(a.eq.3) then
+
+        bb =  0.8
+        cc =  0.06864880408328
+        dd = -0.320972192919132
+        ee =  0.0
+        aa =  0.552199789237622
+
+      elseif(a.eq.4) then
+        bb = 0.466102123780537
+        cc = 0.0156369553828335
+        dd = -0.122243059123825
+        aa = 0.682462282515971
+      elseif(a.eq.9) then
+        bb = 0.463011918692135
+        cc = 0.0125252624899601
+        dd = -0.101843839213646
+        aa = 0.674455752091906
+      elseif (a.eq.12) then
+        bb = 0.222436834975864
+        cc = 0.00769270345172033
+        dd = -0.060282702596254
+        aa = 0.840262866196151
+      elseif((a.eq.63).or.(a.eq.64).or.(a.eq.56)) then
+        bb = 0.041323394008416
+        cc = 0.00447016532137148
+        dd = -0.0303635977582275
+        aa = 1.00675406673173
+      else if (a.eq.197) then
+        bb = 0.0667337559531751
+        cc = 0.00448892579200859
+        dd = -0.0334460588480325
+        aa = 0.981274819686673
+      else
+        write(6,*) ' tail cor, do not want ', a
+>>>>>>> Add most updated xem_model fortran code.  Abstract reading of E0, EP, THETA, A, Z into xem_model.
       endif
       
       return
       end
 
+<<<<<<< f7e0ffcda06cc96c2eb90ee2c9c812056d04ae12
       subroutine write_corrections()
       implicit none
       COMMON /CORRECTIONS/ johns_fac, fact, corfact, dhxcorfac, emc_corr
@@ -469,3 +645,85 @@ c         write(6,*) "johns_fac fact*1000. corfact dhxcorfac emc_corr"
 c      write(6,*) johns_fac, fact*1000., corfact, dhxcorfac, emc_corr
       return
       end
+=======
+!this is the postthesis iteration of daves
+	real*8 function emc_func_xem(x,A) ! now compute the emc effect from our own fits.
+	implicit none
+        integer a
+        real*8 x,xtmp
+	real*8 emc
+
+	if(x.le.0.9) then
+	   xtmp = x
+	else
+	   xtmp = 0.9
+	endif
+
+CDeuterium******************************************************************
+	if(A.eq.2) then
+C iteration 1 Casey
+           emc = 1
+
+CHe3************************************************************************
+	else if(A.eq.3) then
+C iteration 1 Casey
+c           emc = 1
+           emc = 0.81349 + 4.17691*xtmp -21.00865*xtmp**2 + 
+	1        50.24201*xtmp**3 -57.67029*xtmp**4 + 25.22827*xtmp**5
+
+CHe4************************************************************************
+	else if(A.eq.4) then
+C iteration 1 Casey
+c           emc = 1
+           emc = 0.76458 + 4.15387*xtmp -20.56000*xtmp**2 + 
+	1        49.19713*xtmp**3 -56.55423*xtmp**4 + 24.57040*xtmp**5
+
+C Be************************************************************************
+	else if(A.eq.9) then
+C iteration 1 Casey
+c           emc = 1
+           emc = 0.75577 + 6.31620*xtmp -31.22099*xtmp**2 + 
+	1        73.30890*xtmp**3 -83.58729*xtmp**4 + 36.42793*xtmp**5
+
+C Carbon********************************************************************
+	else if(A.eq.12) then
+C iteration 1 Casey
+c           emc = 1
+           emc = 0.70352 + 6.44515*xtmp -31.99850*xtmp**2 + 
+	1        75.42336*xtmp**3 -86.47596*xtmp**4 + 37.81601*xtmp**5
+
+C Al************************************************************************
+	else if(a.eq.27) then
+C iteration 1 Casey
+c           emc = 1
+           emc = 0.63596 + 6.59120*xtmp -32.87832*xtmp**2 + 
+	1        76.97413*xtmp**3 -88.46550*xtmp**4 + 39.04195*xtmp**5
+
+C Copper********************************************************************
+	else if(A.eq.64) then
+C iteration 1 Casey
+c           emc = 1
+           emc = 0.62897 + 9.34351*xtmp -46.33351*xtmp**2 + 
+	1        107.57064*xtmp**3 -122.72402*xtmp**4 + 54.02095*xtmp**5
+
+C Copper********************************************************************
+        else if(A.eq.56) then
+C iteration 1 Casey
+      emc = 1
+
+C Gold**********************************************************************
+	else if(A.eq.197) then
+C iteration 1 Casey
+c           emc = 1
+           emc = 0.59609 + 11.06185*xtmp -54.73150*xtmp**2 + 
+	1        125.84238*xtmp**3 -142.97502*xtmp**4 + 63.04760*xtmp**5
+
+	else
+	   write(*,*) '** in emc_func_xem, unknown target',a
+	   stop
+	endif
+
+	emc_func_xem= emc
+	return
+	end
+>>>>>>> Add most updated xem_model fortran code.  Abstract reading of E0, EP, THETA, A, Z into xem_model.
