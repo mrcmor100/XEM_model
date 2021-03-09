@@ -1,37 +1,36 @@
-      program xem_model_with_special_sauce
+      program run_xem_model
+      implicit none
+      integer eof
+      real*8 E0, EP, THETA, A, Z
+      open(unit=14,file='output/fort.14', status='REPLACE')
+      open(unit=11,file='./input/helium3.inp', status
+     +  ='old')
+      write(*,*) 'opened file'
+
+ 40   READ(11,*,IOSTAT=EOF) E0, EP, THETA, A, Z
+      if(eof.ge.0) then
+        call xem_model(E0, EP, THETA, A, Z)
+        goto 40
+      endif !if file has stuff
+
+      close(11);
+
+      end
+
+      subroutine xem_model(E0, EP, THETA, A, Z)
       implicit none
       include 'constants_dble.inc'
-      real*8 e, ep, theta, q3v, qsq,nu,thr,cs,cs_err,k
-      real*8 sys_err, beta2, tempo, sixGeVData, sixGevDataErr
-      real*8 cs_elastic,sig_el,f_y,y,eps(197),yscale,a,z
-      real*8 pmax,sigdis!,ag,bg,cg,dg
-      real*8 innp, innt, n,fy_err,f2_err,xsi,yalt
-      real*8 pfermi(197),R,beta,xsec_mott,cs_mott,f2,x
-      real*8 sigma_p, sigma_n, y_pt
-      real*8 psi, psi_p, psi_pp,sig_long
+      real*8 E0, EP, THETA, Q3V, QSQ, NU, THR, K
+      real*8 Y, YSCALE, A, Z, X, PMAX
+      real*8 INNP, INNT, N, R, BETA
+      real*8 sigma_p, sigma_n
+      real*8 eps(197), pfermi(197)
       real*8 ag(197), bg(197), bigB(197), f0(197), alpha1(197)
       !New for xem hack
-      real*8 ld2_a,ld2_z,ld2_nn,ld2_aux(7),ld2_sig_dis
-      real*8 emc_corr,ld2_inta, sigdis_raw
-      real*8 x1,x2,sig_dis_emc,sig_donal,sig_dis_donal
-      real*8 frac,corfac, x_low, x_high
-      real*8 emc_func_xem, sig_qe, f2_fac, label,wsq,cs_elastic_r
-
-      real*8 emc_func_slac, corfact
-      real*8 my_frac, sig_before, glob_cor, m_atom(197)
-      real*8 m1, yorig, fact, dwdy,q4_sq, tail_cor,x_cor,johns_fac
-      real*8 alpha_tn,sign_d,sigp_d, sigep_d, sigen_d,sigm_d,sigm_me
-
-      real*8 err_e, err_ep, err_th, err_cc, err_dummy
-
+      real*8 emc_func_xem
       real*8 sig_qe_new, sigdis_new
 
       integer eof,i
-
-      open(unit=14,file='output/fort.14', status='REPLACE')
-!      open(unit=22,file='output/fort.22', status='REPLACE')
-!      open(unit=24,file='output/fort.24', status='REPLACE')
-!      open(unit=28,file='output/fort.28', status='REPLACE')
 
       do i=1,197
          pfermi(i)=.2
@@ -58,17 +57,6 @@
       eps(4)=.02
       eps(3)=.0055
       eps(2)=.00225
-
-      m_atom(1)=1.00794*.9314943
-      m_atom(2)=2.0141*.9314943
-      m_atom(3)=3.0160*.9314943
-      m_atom(4)=4.002602*.9314943
-      m_atom(9)=9.012182*.9314943
-      m_atom(12)=12.0110*.9314943
-      m_atom(27)=26.98*.9314943
-      m_atom(56)=55.8470*.9314943
-      m_atom(64)=63.546*.9314943
-      m_atom(197)=196.9665*.9314943
 
       f0(2)= 0.0087421570999812/.96689
       f0(3)= 0.00530944208609402
@@ -119,83 +107,37 @@
       alpha1(56)=165.7
       alpha1(64)= 132.45766614518
       alpha1(197)= 132.451655636968
-
-      ld2_a=2.00
-      ld2_z=1.00
-      ld2_nn=1.00
-
-      ld2_aux(3)= 0.008742157099981
-      ld2_aux(4)= 0.00082394
-      ld2_aux(5)= 0.0077272168552982
-      ld2_aux(6)= 0.00939373447970209
-      ld2_aux(7)= 45.3840728438637
-      ld2_inta=ld2_a
-
-      x1=0.8                    !x<x1 --> use emc corrected ld2
-      x2=0.9                    !x1<=x<x2 --> smooth transition from emc corrected ld2 to donals smearing
 !      e=5.766!15
 
-      open(unit=11,file='./input/helium3.inp', status
-     +  ='old')
-      write(*,*) 'opened file'
+      N = A - Z
+c        write(*,*) E0,EP,THETA,A,Z
+      PMAX = 2.5*PFERMI(int(a))
+      INNT = 30
+      INNP = 30
 
- 40   READ(11,*,IOSTAT=EOF) e,ep,theta,a,z
-        if(eof.ge.0) then
-           n=a-z
-c        write(*,*) e,ep,theta,a,z
-        PMAX = 2.5*PFERMI(int(a))
-        INNT = 30
-        INNP = 30
-
-        thr=theta*pi/180.!+0.0003
-        qsq=4*E*EP*(SIN(THR/2))**2
-        nu=e-ep
-        Q3V = sqrt(QSQ+NU**2)
-        y=YSCALE(E,EP,THR,A,EPS(int(A)))
-        m1=m_atom(int(a))
-
-
-!        write(*,*) 'my two ys are', yorig, y
-        K= Q3V/(sqrt(nuc_mass**2+(Y+Q3V)**2))
-        R=0.32/qsq
-!        R=0.5*R
-        beta=2*(tan(thr/2))**2*(1+nu**2/qsq)/(1+R)
-        xsec_mott=cs_mott(thr,e)
-        f2=nu*cs/(xsec_mott*(1+beta))
-        f2_fac=nu/(xsec_mott*(1+beta))
-        beta2=beta
-        f2_err=f2*(cs_err/cs)
-        x=qsq/(2*nuc_mass*nu)
-        xsi=2*x/(1+sqrt(1+4*nuc_mass**2*x**2/qsq))
-
-!
-        call sig_dis_calc(int(a), int(z), e, ep, thr, y,sigdis_new)
-   !     write (*,*) 'NEW DIS HOTNESS', sigdis, sigdis_new
-
- 2024  format (4(E13.5,1x))
-c        write(24, 2024) x, sigdis_raw, emc_corr, corfac
-  !      write(*,*) 'EMC RAW ', x, sigdis_raw, emc_corr, corfac
-!     ENd of High X tweak.
-
-       call sig_qe_calc(y, int(a), int(z),e,ep,thr, x, sig_qe_new)
- !      write(*,*) 'SUPERMODEL', sig_qe, sig_qe_new
-
- 2002  format (10(E13.5,1x))
- 2003  format (3(I4, 1x),13(E13.5,1x))
- 2004  format (8(E13.5,1x))
- 2005  format (3(I4, 1x),13(E13.5,1x))
+      THR = THETA*pi/180.       !+0.0003
+      QSQ = 4*E0*EP*(SIN(THR/2))**2
+      NU  = E0 - EP
+      X   = QSQ/(2*nuc_mass*NU)
+      Q3V = sqrt(QSQ + NU**2)
+      Y   = YSCALE(E0,EP,THR,A,EPS(int(A)))
+      K   = Q3V/(sqrt(nuc_mass**2 + (Y + Q3V)**2))
+      R   = 0.32 / QSQ
+!     R=0.5*R
+      BETA = 2*(tan(THR/2))**2*(1+NU**2/QSQ)/(1+R)
+      
+      call sig_dis_calc(int(A), int(Z), E0, EP, THR, Y, sigdis_new)
+      call sig_qe_calc(Y, int(A), int(Z),E0,EP, THR, X, sig_qe_new)
+!      write(*,*) 'SUPERMODEL', sig_qe, sig_qe_new
+      
+ 2002 format (10(E13.5,1x))
       if(y.ne.0) then
-        write(14,2002) y,a,z, theta,ep,x ,sigdis_new,sig_qe_new
-      else   !comment out under normal circumstances
-        write(14,2002) y,a,z, theta,ep,x ,sigdis_new,sig_qe_new
+         write(14,2002) y,a,z, THETA,EP,x ,sigdis_new,sig_qe_new
+      else       !comment out under normal circumstances
+         write(14,2002) y,a,z, THETA,EP,x ,sigdis_new,sig_qe_new
       endif
-
-      goto 40
-      endif !if file has stuff
-      close(11);
-
-
-
+      
+      return
       end
 
 !-----------------------------------------------------------------------------
@@ -225,12 +167,6 @@ c      write (*,*) 'New DiS SUB'
       call sig_bar_df(e, ep, thr*180.0/pi, y,dble(0.0), sigma_p,
      +  sigma_n)
 
-c      write(22,*) a, ep,x, sigma_n, sigma_p
-c      write(*,*) 'SIGBAR  ',  a, ep,x, sigma_n, sigma_p
-
-      cs_elastic=sigma_p*z+(a-z)*sigma_n
-      cs_elastic=cs_elastic     !*1e9
-
       PMAX=1.0
 !       Here's all the xem-specific model stuff.
       WSQ = -qsq + nuc_mass**2 + 2.0*nuc_mass*nu
@@ -249,10 +185,6 @@ c     +        PMAX,INNP,INNT,f0(a),bigB(a),ag(a),bg(a),alpha1(a)
          CALL BDISNEW4HE3(E,EP,THR,dble(A),dble(Z),dble(N),EPS(a),PMAX,
      +        dble(INNP),dble(INNT),f0(a),bigB(a),ag(a),bg(a),
      +        alpha1(a) ,SIGDIS)
-
-c         write(*,*) 'NEW SUB bdis returned' , e, ep, sigdis, eps(a)
-
-         sigdis_raw=sigdis
 
          if (x.lt.x1) then
             emc_corr = emc_func_xem(x,a)
@@ -303,11 +235,6 @@ c         sigmott=(19732.0/(2.0*137.0388*e1cc*sn**2))**2*cs**2/1.d6
       real*8 y, e, ep, tail_cor
       include 'model_constants.inc'
 
-
-
-c      write (*,*) 'this is fiiiiiine'
-
-
         y=y*1000
 !        write(*,*) 'my params', f0(a), bigB(a), alpha1(a), ag(a), bg(a)
         if(a.eq.2.) then
@@ -331,7 +258,7 @@ c      write (*,*) 'this is fiiiiiine'
         elseif (a.eq.197) then
           johns_fac=max(1.,1.+y*1.4*4)
         endif
-c        write(*,*) "FYONLY ", x, y, sig_qe, johns_fac
+
        sig_qe=johns_fac*sig_qe
 
   	q4_sq = 4.*e*ep*sin(thr/2.)**2 		!4-mom. transf. squared.
@@ -340,12 +267,9 @@ c        write(*,*) "FYONLY ", x, y, sig_qe, johns_fac
 	dwdy = q3v/sqrt(nuc_mass**2+q3v**2+y**2+2.0*q3v*y)
 
         call sig_bar_df(e, ep, thr*180/pi, y,dble(0.0), sigma_p, sigma_n)
-c        write (*,*) 'x, qsq', x, q4_sq, sigma_n, sigma_p
-
 
         fact = (Z*sigma_p+(A-Z)*sigma_n)/dwdy
         sig_qe=sig_qe*fact*1000.
-c       write (*,*) 'Before COR ', sig_qe
 
 	if(x.gt.2.0) then
 	  x_cor=2.0
@@ -377,7 +301,6 @@ c       write (*,*) 'Before COR ', sig_qe
 	  endif
           sig_qe=sig_qe*corfact
         endif
-c        write (*,*) 'Sending back, QE ', sig_qe
       end
 
 !---------------------------------------------------------------------
@@ -390,30 +313,8 @@ c        write (*,*) 'Sending back, QE ', sig_qe
       real*8 qv2
 
       yscale = 0.0
-                                !write (6,*) 'in y scale'
-                                !write (15,*) ' nucmass is ', NUC_MASS
       NU = E-EP
       QSQ = 4*E*EP*(SIN(THR/2))**2
-                                !write (6,*)' qsq is ', QSQ
-!      write (*,*) 'eps, e,ep,nu,a, th', EPS,E,EP,nu,A,thr
-
-!      W = NU+A*NUC_MASS-EPS
-!      WP = W**2+((A-1)*NUC_MASS)**2-NUC_MASS**2
-                                !write (15,*) 'w, wp, qsq', w,wp,qsq
-!      EPS=0.0
-!    AG = 4*W**2-4*(NU**2+QSQ)
-!     BG = SQRT(NU**2+QSQ)*(4*WP-4*(NU**2+QSQ))
-!      PART1 = 4*W**2*(((A-1)*NUC_MASS)**2)
-!      PART2 = 2*WP*(QSQ+NU**2)
-!      PART3 = (QSQ+NU**2)**2
-!      CG = PART1+PART2-PART3-WP**2
-!      CG = -WP**2+4*(((A-1)*NUC_MASS)**2)*(A*NUC_MASS+NU)**2
-!      rad = BG**2-4*AG*CG
-!      write (*,*) 'A, B, C, RAD', AG,BG,CG,RAD
-!      if (rad.lt.0) return
-!      YSCALE = (-BG+SQRT(BG**2-4*AG*CG))/(2*AG)
-!      backup =  (-BG-SQRT(BG**2-4*AG*CG))/(2*AG)
-
 
       qv2=qsq+nu**2
       W = NU+A*NUC_MASS-EPS
@@ -432,9 +333,6 @@ c        write (*,*) 'Sending back, QE ', sig_qe
          backup =  (-BG-SQRT(BG**2-4*AG*CG))/(2*AG)
       endif
 
-
-!      write(6,*)'got y of', YSCALE
-                                !write (6,*) 'got backup y of ', backup
       RETURN
       END
 
@@ -678,19 +576,19 @@ c-------------------------------------------------------------------------------
       ee=0.
       ff=0.
       if(a.eq.2) then
-         aa = 1.72816025139459
-        bb = 2.53114253906281
+        aa =  1.72816025139459
+        bb =  2.53114253906281
         cc = -2.72505067059703
         dd = -1.58637090989274
         ee = -16.3972900673533
 
       elseif(a.eq.3) then
 
-        bb = 0.8
-        cc = 0.06864880408328
+        bb =  0.8
+        cc =  0.06864880408328
         dd = -0.320972192919132
-        ee = 0
-        aa = 0.552199789237622
+        ee =  0.0
+        aa =  0.552199789237622
 
       elseif(a.eq.4) then
         bb = 0.466102123780537
@@ -724,70 +622,6 @@ c-------------------------------------------------------------------------------
       tail_cor=(aa*exp(bb*x)+cc*x**6+dd*x**4+ee*x**2+ff)
       return
       end
-
-
-      SUBROUTINE ROSEN(CS_NS,QSQ,THR,CSN,CSP)
-      IMPLICIT NONE
-      real*8 QSQ,GEP,GMP,GEN,GMN,KP,TAU,H(0:5),gep1,gmp1,gen1,gmn1
-      real*8 P,MP,PRODUCT,CS_NS,CSN,CSP,THR
-      REAL*4 Q2,one,two
-      real*8 GEP4,GMP4,GEN4,GMN4
-      INTEGER I,J,ig
-      H(0) = 1.0007
-      H(1) = 1.01807
-      H(2) = 1.05584
-      H(3) = 0.836380
-      H(4) = 0.6864584
-      H(5) = 0.672830
-      MP = 0.938256
-      KP = 1.7927
-      P=0
-                                !write (6,*) ' in rosen, cs_ns is ', cs_ns
-      DO I=0,5
-         PRODUCT = 1
-         DO J=0,5
-            IF (I.NE.J)THEN
-               PRODUCT = PRODUCT*(SQRT(QSQ)-J)/(I-J)
-            ENDIF
-         END DO
-         P = P+H(I)*PRODUCT
-      END DO
-                                !write (6,*) ' got P of ', P
-                                !P = 1.0
-      GEP1 = P/(1+QSQ/0.71)**2
-      GMP1 = GEP1*(1.0+KP)
-      TAU = QSQ/(4*MP**2)
-      GEN1 =  TAU*(1.91)*GEP1/(1+5.6*TAU)
-      GMN1 = GEP1*(-1.91)
-                                !write (6,*)'IN ROSEN, GEP GMP  GEN GMN', GEP,GMP,GEN,GMN
-!      write(15,*) thr*180/3.14159, qsq, gep1, gmp1, gen1,gmn1
-
-      Q2 = (QSQ)/(.1973289**2)
-                                !CALL BBG_FF(real*8(QSQ),GEP4,GMP4,GEN4,GMN4)
-                                !GMP4 = GMP4*2.79
-                                !GMN4 = GMN4*(-1.91)
-                                !write (6,*)'BBG_FF, GEP GMP  GEN GMN', GEP4,GMP4,GEN4,GMN4
-      one = 0.0
-      two = 0.0
-      ig = 13
-!      write(*,*) 'sending nform', q2, ig,qsq
-      CALL nform(dble(13.0),QSQ,GEP4,GEN4,GMP4,GMN4)
-!      write(16,*) thr*180/3.14159, qsq, gep4, gmp4, gen4,gmn4
-      GEP = GEP4
-      GMP = GMP4
-      GEN = GEN4
-      GMN = GMN4
- !     GEP = GEP1
- !     GMP = GMP1
- !     GEN = GEN1
- !     GMN = GMN1
-!      write (6,*)'Nform, GEP GMP  GEN GMN', GEP,GMP,GEN,GMN
-!      write (6,*)'Nform4, GEP GMP  GEN GMN', GEP4,GMP4,GEN4,GMN4
-      CSN= CS_NS*(((GEN**2+TAU*GMN**2)/(1+TAU))+2*tau*GMN**2*(tan(THR/2))**2)
-      CSP=CS_NS*(((GEP**2+TAU*GMP**2)/(1+TAU))+2*TAU*GMP**2*(tan(THR/2))**2)
-!      write (6,*)' SIGP, SIGN', CSP,CSN
-      END
-
 
 !this is the postthesis iteration of daves
 	real*8 function emc_func_xem(x,A) ! now compute the emc effect from our own fits.
