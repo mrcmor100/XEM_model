@@ -1,26 +1,3 @@
-<<<<<<< Updated upstream
-      program run_xem_model
-      implicit none
-      integer eof
-      real*8 E0, EP, THETA, A, Z
-      open(unit=14,file='output/fort.14', status='REPLACE')
-      open(unit=11,file='./input/helium3.inp', status
-     +  ='old')
-      write(*,*) 'opened file'
-
- 40   READ(11,*,IOSTAT=EOF) E0, EP, THETA, A, Z
-      if(eof.ge.0) then
-        call xem_model(E0, EP, THETA, A, Z)
-        goto 40
-      endif !if file has stuff
-
-      close(11);
-
-      end
-
-      subroutine xem_model(E0, EP, THETA, A, Z)
-      implicit none
-=======
 c$$$      program run_xem_model
 c$$$      implicit none
 c$$$      integer eof
@@ -42,7 +19,6 @@ c$$$      end
 
       subroutine xem_model(E0, EP, THETA, A, Z, sigdis_new, sig_qe_new)
       implicit none
->>>>>>> Stashed changes
       include 'constants_dble.inc'
       real*8 E0, EP, THETA, Q3V, QSQ, NU, THR, K
       real*8 Y, YSCALE, A, Z, X, PMAX
@@ -160,11 +136,8 @@ c        write(*,*) E0,EP,THETA,A,Z
       else       !comment out under normal circumstances
          write(14,2002) y,a,z, THETA,EP,x ,sigdis_new,sig_qe_new
       endif
-<<<<<<< Updated upstream
-=======
       sigdis_new = sigdis_new / 1000.
       sig_qe_new = sig_qe_new * 1000.
->>>>>>> Stashed changes
       
       return
       end
