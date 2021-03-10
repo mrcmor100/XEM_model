@@ -19,6 +19,7 @@ namespace XEM
 		double NZ, NA;
 		NZ = Z;
 		NA = Z+N;
+		theta = theta * 180. / 3.14159;  //My model takes theta in Degrees!
 		double XS, dis_XS, qe_XS;
 #ifdef WIN32
 		//this fortran routine does not work in windows, do not know why
@@ -27,7 +28,7 @@ namespace XEM
 		xem_model_(&Ei, &Ef, &theta, &NA, &NZ, &dis_XS, &qe_XS);
 		XS = dis_XS+qe_XS;
 #endif
-		return XS;
+		return XS / 1000.;
 	}
 }
 
