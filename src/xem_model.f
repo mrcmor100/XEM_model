@@ -1,175 +1,88 @@
       program run_xem_model
       implicit none
       integer eof
-      real*8 E0, EP, THETA, A, Z
-      open(unit=14,file='output/fort.14', status='REPLACE')
-      open(unit=11,file='./input/helium3.inp', status
-     +  ='old')
-      write(*,*) 'opened file'
+      character*80 rawname, filename, ofilename
+      real*8 E0, EP, THETA, A, Z, dis_XS, qe_XS
+      integer*4	last_char
+
+      read(*,1968) rawname
+ 1968 format(a)
+CAM Open input file.
+      filename = 'input/'//rawname(1:last_char(rawname))//'.inp'
+      open(unit=11,status='old',file=filename)
+
+CAM Open output file.
+      filename = './output/'//rawname(1:last_char(rawname))//'_w_jfac.out'
+      open (unit=14,status='unknown',file=filename)
 
  40   READ(11,*,IOSTAT=EOF) E0, EP, THETA, A, Z
       if(eof.ge.0) then
-        call xem_model(E0, EP, THETA, A, Z)
+        call xem_model(E0, EP, THETA, A, Z, dis_XS, qe_XS)
         goto 40
       endif !if file has stuff
-
       close(11);
-
       end
 
-      subroutine xem_model(E0, EP, THETA, A, Z)
+!-----------------------------------------------------------------------------
+CAM Main subroutine used in externals.
+!-----------------------------------------------------------------------------
+      subroutine xem_model(E0, EP, THETA, A, Z, sigdis_new,sig_qe_new)
       implicit none
       include 'constants_dble.inc'
-      real*8 E0, EP, THETA, Q3V, QSQ, NU, THR, K
-      real*8 Y, YSCALE, A, Z, X, PMAX
-      real*8 INNP, INNT, N, R, BETA
-      real*8 sigma_p, sigma_n
-      real*8 eps(197), pfermi(197)
-      real*8 ag(197), bg(197), bigB(197), f0(197), alpha1(197)
-      !New for xem hack
-      real*8 emc_func_xem
+      real*8 E0, EP, THETA, QSQ, NU, THR
+      real*8 Y, A, Z, X, N
+      real*8 INNP, INNT
       real*8 sig_qe_new, sigdis_new
+      real*8 YSCALE
 
-      integer eof,i
+      include 'model_constants.inc'
 
-      do i=1,197
-         pfermi(i)=.2
-         EPS(i)=0.01
-
-      enddo
-
-      pfermi(197)=.264
-      pfermi(64)=.260
-      pfermi(56)=.260
-      pfermi(27)=.240
-      pfermi(12)=.221
-      pfermi(9)=.230
-      pfermi(4)=.160
-      pfermi(3)=.160
-      pfermi(2)=.055
-!      eps(197)=.049
-      eps(197)=.0058
-      eps(64)=0.010
-      eps(56)=0.010
-      eps(27)=.0083
-      eps(12)=.016
-      eps(9)=0.0168
-      eps(4)=.02
-      eps(3)=.0055
-      eps(2)=.00225
-
-      f0(2)= 0.0087421570999812/.96689
-      f0(3)= 0.00530944208609402
-      f0(4)= 0.00401973252542711
-      f0(9)= 0.00348142965010112
-      f0(12)= 0.00318223097961272
-      f0(27)=0.0032783
-      f0(56)=0.00289
-      f0(64)= 0.002874027535171
-      f0(197)= 0.00264244988981799
-
-      bigB(2)= 0.000823944541945584/.96689
-      bigB(3)= 0.00218428711503937
-      bigB(4)= 0.00134486977748062
-      bigB(9)= 0.00116084580978475
-      bigB(12)= 0.00135911193714437
-      bigB(27)=0.0013474
-      bigB(56)=0.0014016
-      bigB(64)= 0.000886615094402987
-      bigB(197)= 0.000763159585000613
-
-      ag(2)= 0.00772721685529826
-      ag(3)= 0.00288636824154895
-      ag(4)= 0.0026986223386714
-      ag(9)= 0.00311951067940091
-      ag(12)= 0.00302654042944761
-      ag(27)=0.0029698
-      ag(56)=0.0031802
-      ag(64)= 0.00309586042619543
-      ag(197)= 0.00306539017228031
-
-      bg(2)= 0.00939373447970209
-      bg(3)= 0.0103491992909402
-      bg(4)= 0.00749410002149716
-      bg(9)= 0.00783976750998206
-      bg(12)= 0.00705046729168206
-      bg(27)=0.006576
-      bg(56)=0.0072635
-      bg(64)= 0.00709447514594065
-      bg(197)= 0.00676775547526636
-
-      alpha1(2)= 45.3840728438637
-      alpha1(3)= 64.247220058789
-      alpha1(4)= 100.255815258545
-      alpha1(9)= 110.966740959374
-      alpha1(12)= 137.284604974981
-      alpha1(27)=131.845
-      alpha1(56)=165.7
-      alpha1(64)= 132.45766614518
-      alpha1(197)= 132.451655636968
-!      e=5.766!15
-
-      N = A - Z
-c        write(*,*) E0,EP,THETA,A,Z
-      PMAX = 2.5*PFERMI(int(a))
       INNT = 30
       INNP = 30
 
-      THR = THETA*pi/180.       !+0.0003
+      N = A - Z
+      THR = THETA*pi/180.
       QSQ = 4*E0*EP*(SIN(THR/2))**2
       NU  = E0 - EP
       X   = QSQ/(2*nuc_mass*NU)
-      Q3V = sqrt(QSQ + NU**2)
       Y   = YSCALE(E0,EP,THR,A,EPS(int(A)))
-      K   = Q3V/(sqrt(nuc_mass**2 + (Y + Q3V)**2))
-      R   = 0.32 / QSQ
-!     R=0.5*R
-      BETA = 2*(tan(THR/2))**2*(1+NU**2/QSQ)/(1+R)
-      
+
       call sig_dis_calc(int(A), int(Z), E0, EP, THR, Y, sigdis_new)
       call sig_qe_calc(Y, int(A), int(Z),E0,EP, THR, X, sig_qe_new)
-!      write(*,*) 'SUPERMODEL', sig_qe, sig_qe_new
-      
+
  2002 format (10(E13.5,1x))
       if(y.ne.0) then
          write(14,2002) y,a,z, THETA,EP,x ,sigdis_new,sig_qe_new
       else       !comment out under normal circumstances
          write(14,2002) y,a,z, THETA,EP,x ,sigdis_new,sig_qe_new
       endif
-      
+
       return
       end
 
 !-----------------------------------------------------------------------------
+CAM Calculate DIS using donal's smearing routine.
 !-----------------------------------------------------------------------------
-!-----------------------------------------------------------------------------
-
-      subroutine sig_dis_calc(a, z, e, ep, thr, y,sigdis)
+      subroutine sig_dis_calc(a, z, e, ep, thr, y, sigdis)
       implicit none
       include 'constants_dble.inc'
       integer a, z, n, innp, innt
-      real*8 sig_dis, e, ep, thr, cs_elastic,wsq
-      real*8 sigma_n, sigma_p, sigdis_raw
-      real*8 x1, x2, emc_corr, x,y, qsq, nu
-      real*8 frac, corfac,  emc_func_xem,sig_before, sigdis
-      real*8 pmax, f1, f2, w1, w2, tan_2, cs_mott
+      real*8 e, ep, thr, wsq, x,y, qsq, nu
+      real*8 sigdis, corfac, pmax
+      real*8 f1, f2, w1, w2, tan_2, sig_mott
+      real*8 frac, x1, x2, emc_corr
+      real*8 emc_func_xem
       include 'model_constants.inc'
 
+      n=a-z
       qsq=4.0*e*ep*sin(thr/2)**2
       nu=e-ep
       x=qsq/2.0/nuc_mass/nu
-
-      x1=0.8                    !x<x1 --> use emc corrected ld2
-      x2=0.9                    !x1<=x<x2 --> smooth transition from emc corrected ld2 to donals smearing
-
-      n=a-z
-c      write (*,*) 'New DiS SUB'
-      call sig_bar_df(e, ep, thr*180.0/pi, y,dble(0.0), sigma_p,
-     +  sigma_n)
+      WSQ = -qsq + nuc_mass**2 + 2.0*nuc_mass*nu
 
       PMAX=1.0
-!       Here's all the xem-specific model stuff.
-      WSQ = -qsq + nuc_mass**2 + 2.0*nuc_mass*nu
+      x1=0.8 !x<x1 --> use emc corrected ld2
+      x2=0.9 !x1<=x<x2 --> smooth transition from emc corrected ld2 to donals smearing
 
       if(a.ge.2) then
          if(WSQ.lt.2.25) then
@@ -180,143 +93,138 @@ c      write (*,*) 'New DiS SUB'
             innp=10
          endif
 
-c         write(*,*) 'New Sub, passing variables', E,EP,THR,A,Z,N,EPS(a),
-c     +        PMAX,INNP,INNT,f0(a),bigB(a),ag(a),bg(a),alpha1(a)
-         CALL BDISNEW4HE3(E,EP,THR,dble(A),dble(Z),dble(N),EPS(a),PMAX,
+         CALL smear4all(E,EP,THR,dble(A),dble(Z),dble(N),EPS(a),PMAX,
      +        dble(INNP),dble(INNT),f0(a),bigB(a),ag(a),bg(a),
      +        alpha1(a) ,SIGDIS)
 
+CAM EMC_FUNC specific correction.
+CAM D2 set to F1F221.
          if (x.lt.x1) then
             emc_corr = emc_func_xem(x,a)
          elseif ((x.ge.x1).and.(x.lt.x2)) then
             frac = (x-x1)/(x2-x1)
             emc_corr = 1.0*frac + emc_func_xem(x,a)*(1.-frac)
+CAM Uncomment when setting emc_func_xem
+CAM           emc_corr = emc_func_xem(x,a)
          elseif(x.ge.x2) then
             emc_corr = 1.0
          endif
-
          sigdis = sigdis*emc_corr
 
-         if (sigdis.lt.0) then
-            write(*,*) 'wtf 0', sigdis, x, corfac
-         endif
-
+CAM Make a correction to the high_x tail.
          corfac=1.
-         if ((x.gt.0.9)) then
-            call  dis_highx_cor(a,x,corfac)
-            sig_before=sigdis
-            sigdis = sigdis*corfac
-            if (sigdis.lt.0) then
-               write(*,*) 'wtf', sigdis, x, corfac, sig_before
-            endif
-         endif
+c         if ((x.gt.0.9)) then
+c            call  dis_highx_cor(a,x,corfac)
+c            sigdis = sigdis*corfac
+c         endif
 
       else if(A.eq.1) then
-         call F1F2IN20(dble(Z),dble(A), QSQ, WSQ, F1, F2)
+         call F1F2IN21(dble(Z),dble(A), QSQ, WSQ, F1, F2)
          W1 = F1/.93827231D0
          W2 = F2/nu
          tan_2 = tan(thr/2)**2
-C       Mott cross section
-c         sigmott=(19732.0/(2.0*137.0388*e1cc*sn**2))**2*cs**2/1.d6
-         sigdis =  cs_mott(thr,e)*(W2+2.0*W1*tan_2)
+CAM    Mott cross section
+         sig_mott = 0.3893857*(alpha*cos(thr/2))**2/(2*e*sin(thr/2)**2)**2
+         sigdis =  sig_mott*(W2+2.0*W1*tan_2)*1.e-2*1.e9
       endif
-
       end
 
 !-----------------------------------------------------------------------------
-      subroutine sig_qe_calc(y, a, z,e,ep,thr, x, sig_qe)
+      subroutine sig_qe_calc(y, a, z, e, ep, thr, x, sig_qe)
       implicit none
       include 'constants_dble.inc'
-      integer a,z
-      real*8 input, sig_qe, johns_fac
-      real*8 q4_sq, q3v, dwdy,thr, fact,nu
-      real*8 x, x_cor, corfact, my_frac, x_high, x_low
-      real*8 sigma_n, sigma_p, theta
-      real*8 y, e, ep, tail_cor
+      integer a, z
+      real*8 thr, y, e, ep, x, nu, q4_sq, q3v
+      real*8 sig_qe, sigma_n, sigma_p
+      real*8 dwdy, fact
+      real*8 johns_fac
+      real*8 x_cor, my_frac, x_high, x_low, corfact, tail_cor
       include 'model_constants.inc'
 
-        y=y*1000
-!        write(*,*) 'my params', f0(a), bigB(a), alpha1(a), ag(a), bg(a)
-        if(a.eq.2.) then
-          sig_qe = (f0(a)-bigB(a))*alpha1(a)**2*exp(-(ag(a)*y)**2)
-     +      /(alpha1(a)**2+y**2)+bigB(a)*exp(-bg(a)*abs(y))
-        else
-          sig_qe = (f0(a)-bigB(a))*alpha1(a)**2*exp(-(ag(a)*y)**2)
-     +      /(alpha1(a)**2+y**2)+bigB(a)*exp(-(bg(a)*y)**2)
-!       write(*,*) f0(a), ag(a), bg(a),bigB(a), alpha1(a)
-       endif
-        y=y/1000
-        johns_fac=1.
-        if (a.eq.3) then
-          johns_fac=max(1.,1.+y*1.4*2.5)
-        elseif (a.eq.4) then
-          johns_fac=max(1.,1.+y*1.4*1.75)
-        elseif (a.eq.12) then
-          johns_fac=max(1.,1.+y*1.4*2.5)
-        elseif ((a.eq.56).or.(a.eq.64)) then
-          johns_fac=max(1.,1.+y*1.4*3)
-        elseif (a.eq.197) then
-          johns_fac=max(1.,1.+y*1.4*4)
-        endif
+      q4_sq = 4.*e*ep*sin(thr/2.)**2 !4-mom. transf. squared.
+      nu = e-ep                 !Energy loss
+      q3v = sqrt(q4_sq + nu**2) !3-momentum transfer
+      dwdy = q3v/sqrt(nuc_mass**2+q3v**2+y**2+2.0*q3v*y)
+      x=q4_sq/2.0/nuc_mass/nu
 
-       sig_qe=johns_fac*sig_qe
+CAM F(y) from Nadia's Thesis based on:
+CAM https://arxiv.org/pdf/nucl-th/9702009.pdf
+      y=y*1000
+      if(a.eq.2.) then
+        sig_qe = (f0(a)-bigB(a))*alpha1(a)**2*exp(-(ag(a)*y)**2)
+     +    /(alpha1(a)**2+y**2)+bigB(a)*exp(-bg(a)*abs(y))
+      else
+        sig_qe = (f0(a)-bigB(a))*alpha1(a)**2*exp(-(ag(a)*y)**2)
+     +    /(alpha1(a)**2+y**2)+bigB(a)*exp(-(bg(a)*y)**2)
+      endif
+      y=y/1000.
 
-  	q4_sq = 4.*e*ep*sin(thr/2.)**2 		!4-mom. transf. squared.
-	nu = e-ep				!Energy loss
-	q3v = sqrt(q4_sq + nu**2)		!3-momentum transfer
-	dwdy = q3v/sqrt(nuc_mass**2+q3v**2+y**2+2.0*q3v*y)
+CAM JOHNS_FAC basically linear factor less than X=1
+      johns_fac=1.
+      if (a.eq.3) then
+         johns_fac=max(1.,1.+y*1.4*2.5)
+      elseif (a.eq.4) then
+         johns_fac=max(1.,1.+y*1.4*1.75)
+      elseif (a.eq.12) then
+         johns_fac=max(1.,1.+y*1.4*2.5)
+         write(*,*) 'johns fac:',y, x, johns_fac
+      elseif ((a.eq.56).or.(a.eq.64)) then
+         johns_fac=max(1.,1.+y*1.4*3)
+      elseif (a.eq.197) then
+         johns_fac=max(1.,1.+y*1.4*4)
+      endif
+      sig_qe=johns_fac*sig_qe
 
-        call sig_bar_df(e, ep, thr*180/pi, y,dble(0.0), sigma_p, sigma_n)
+CAM Make get the off-shell contributions based on DeForest:
+CAM T. De Forest, Jr. Nuc. Phys. A392 232 (1983)
+      call sig_bar_df(e, ep, thr*180/pi, y,dble(0.0), sigma_p, sigma_n)
 
-        fact = (Z*sigma_p+(A-Z)*sigma_n)/dwdy
-        sig_qe=sig_qe*fact*1000.
+      fact = (Z*sigma_p+(A-Z)*sigma_n)/dwdy
+      sig_qe=sig_qe*fact*1000.
 
-	if(x.gt.2.0) then
-	  x_cor=2.0
-        else
-          x_cor=x
-	endif
-
-	if(a.eq.2) then
-	  x_low=1
-	  x_high=1.05
-	endif
-
-	if(a.gt.2) then
-	  if((a.eq.64).or.(a.eq.4).or.(a.eq.197).or.(a.eq.56)) then
-	    x_low=1.2
-	    x_high=1.4
-	  else
-	    x_low=1.4
-	    x_high=1.6
-	  endif
-	endif
-
-        corfact=1.
-	if((x.ge.(x_low))) then !.and.(A.eq.2)) then
-          corfact=tail_cor(x_cor,a)
-          if(x.lt.(x_high)) then
-	    my_frac=(x-x_low)/(x_high-x_low)
-            corfact=my_frac*corfact+(1.-my_frac)
-	  endif
-          sig_qe=sig_qe*corfact
-        endif
+CAM tail_cor applied here
+c      if(x.gt.2.0) then
+c         x_cor=2.0
+c      else
+c         x_cor=x
+c      endif
+c      if(a.eq.2) then
+c         x_low=1
+c         x_high=1.05
+c      endif
+c      if(a.gt.2) then
+c         if((a.eq.64).or.(a.eq.4).or.(a.eq.197).or.(a.eq.56)) then
+c	    x_low=1.2
+c	    x_high=1.4
+c         else
+c	    x_low=1.4
+c	    x_high=1.6
+c         endif
+c      endif
+c      corfact=1.
+c      if((x.ge.(x_low))) then   !.and.(A.eq.2)) then
+c         corfact=tail_cor(x_cor,a)
+c         if(x.lt.(x_high)) then
+c	    my_frac=(x-x_low)/(x_high-x_low)
+c            corfact=my_frac*corfact+(1.-my_frac)
+c         endif
+c         sig_qe=sig_qe*corfact
+c      endif
       end
 
 !---------------------------------------------------------------------
-
+CAM Function to determine Y.  Refer to John A's thesis
+!---------------------------------------------------------------------
       real*8 FUNCTION YSCALE(E,EP,THR,A,EPS)
       IMPLICIT NONE
       INCLUDE 'constants_dble.inc'
       real*8 E, EP,THR,A, NU,W,WP,AG,BG,PART1,PART2,PART3,EPS,QSQ,CG
       real*8 backup,RAD
-      real*8 qv2
 
       yscale = 0.0
       NU = E-EP
       QSQ = 4*E*EP*(SIN(THR/2))**2
 
-      qv2=qsq+nu**2
       W = NU+A*NUC_MASS-EPS
       WP = W**2+((A-1)*NUC_MASS)**2-NUC_MASS**2
                                 !write (15,*) 'w, wp, qsq', w,wp,qsq
@@ -330,29 +238,11 @@ c         sigmott=(19732.0/(2.0*137.0388*e1cc*sn**2))**2*cs**2/1.d6
                                 !write (15,*) 'A, B, C, RAD', AG,BG,CG,RAD
       if (rad.ge.0) then
          YSCALE = (-BG+SQRT(BG**2-4*AG*CG))/(2*AG)
-         backup =  (-BG-SQRT(BG**2-4*AG*CG))/(2*AG)
+         backup = (-BG-SQRT(BG**2-4*AG*CG))/(2*AG)
       endif
 
       RETURN
       END
-
-
-      real*8 FUNCTION CS_MOTT(THETA,ESTART)
-      IMPLICIT NONE
-      INCLUDE 'constants_dble.inc'
-      real*8 THETA,ESTART,hbarc2
-
-      hbarc2=.38937966
-                                !ALPHA = 1/137.02
-      CS_MOTT = 0.1973289**2*1e10*(ALPHA**2)*(COS(THETA/2)**2)/(4*(ESTART**2)*(SIN(THETA/2))**4)
- !     CS_MOTT = hbarc2*(ALPHA**2)*(cos(theta/2))**2/(4*(ESTART**2)*(SIN(THETA/2))**4)
-                                !(.197**2*1E10)*
-                                !(3.893869477*1E9)*
-                                !write(6,*)'in cs_mott, got ',cs_mott
-      RETURN
-      END
-
-
 
       subroutine sig_bar_df(e1,e2,theta,pl,pt,sig_p,sig_n)
 C+______________________________________________________________________________
@@ -470,13 +360,10 @@ C DeForest cross sections.
 	subroutine dis_highx_cor(anuc,x,cor)
         implicit none
         integer anuc
-	real*8 x,cor, frac,xlow1,xhigh1,xlow2,xhigh2
+	real*8 x,cor, frac,xlow1,xhigh1
 
 	xlow1=0.9
 	xhigh1=0.95
-
-	xlow2=1.9
-	xhigh2=2.0
 
 	frac=1.
 	cor=1.
@@ -487,19 +374,10 @@ C DeForest cross sections.
             frac = (x-xlow1)/(xhigh1-xlow1)
           endif
           cor=frac*cor+1.-frac
-!     xlow1=0.94
-!	  xhigh1=.97
-!     if (x.gt.xlow1) then
-!     if (x.lt.1.15) then
-!     cor= -3.1567509*x+ 4.04048547544833
-!     else
-!     cor=0.5
-!     endif
-!     if((x.ge.xlow1).and.(x.le.xhigh1)) then
-!     frac = (x-xlow1)/(xhigh1-xlow1)
-!     endif
-!     endif
-!     cor=frac*cor+1.-frac
+c          write(*,*) 'No call to dis_highx_cor btwn xlow, xhigh in D2,
+c     &     cor:', cor
+c          write(*,*) 'No call to dis_highx_cor above x=0.9 in D2,
+c     &     cor:', cor
 	elseif (anuc.eq.3) then
 	  xlow1=1.
 	  xhigh1=1.15
@@ -532,20 +410,13 @@ C DeForest cross sections.
 	   if((x.ge.xlow1).and.(x.le.xhigh1)) then
 	     frac = (x-xlow1)/(xhigh1-xlow1)
 	   endif
-!	   if((x.ge.xlow2).and.(x.le.xhigh2)) then
-!	     frac = (x-xlow2)/(xhigh2-xlow2)
-!	     frac=1.-frac
-!	   endif
-!	   if(x.gt.xhigh2) frac=0.
 	   cor=frac*cor+1.-frac
-!	   write(21,*) 'cor is ', cor, x
 	 elseif((anuc.eq.63).or.(anuc.eq.64)) then
 	   cor=-1.65829142599487*x+ 2.48174872208596
 	   if((x.ge.xlow1).and.(x.le.xhigh1)) then
 	     frac = (x-xlow1)/(xhigh1-xlow1)
 	   endif
 	   cor=frac*cor+1.-frac
-!	   cor=1.0
 	 elseif(anuc.eq.197) then
 	   cor=-1.42430013496752*x+ 2.25789690593227
 
@@ -562,8 +433,10 @@ C DeForest cross sections.
 
 	return
 	end
-c--------------------------------------------------------------------------------
 
+c--------------------------------------------------------------------------------
+CAM tail_cor used to fix tail of QE cross-section.
+c--------------------------------------------------------------------------------
       real*8 function tail_cor(x,a)
       implicit none
       integer a
@@ -583,7 +456,6 @@ c-------------------------------------------------------------------------------
         ee = -16.3972900673533
 
       elseif(a.eq.3) then
-
         bb =  0.8
         cc =  0.06864880408328
         dd = -0.320972192919132
@@ -639,61 +511,65 @@ c-------------------------------------------------------------------------------
 CDeuterium******************************************************************
 	if(A.eq.2) then
 C iteration 1 Casey
+c Parameters for F1F221
            emc = 1
+           emc = 0.98835 + 0.15439*xtmp - 0.34950*xtmp**2 +
+	1        0.34427*xtmp**3 - 0.02874*xtmp**4 - 0.04936*xtmp**5
 
 CHe3************************************************************************
 	else if(A.eq.3) then
 C iteration 1 Casey
-c           emc = 1
-           emc = 0.81349 + 4.17691*xtmp -21.00865*xtmp**2 + 
-	1        50.24201*xtmp**3 -57.67029*xtmp**4 + 25.22827*xtmp**5
+           emc = 1
+           emc = 1.31789 - 2.47197*xtmp + 12.03740*xtmp**2 -
+	1        26.33859*xtmp**3 + 25.66942*xtmp**4 - 9.14186*xtmp**5
 
 CHe4************************************************************************
 	else if(A.eq.4) then
 C iteration 1 Casey
-c           emc = 1
-           emc = 0.76458 + 4.15387*xtmp -20.56000*xtmp**2 + 
-	1        49.19713*xtmp**3 -56.55423*xtmp**4 + 24.57040*xtmp**5
+           emc = 1
+           emc = 1.36112 - 3.41330*xtmp + 15.67047*xtmp**2 -
+	1        32.79506*xtmp**3 + 31.50846*xtmp**4 - 11.52059*xtmp**5
 
 C Be************************************************************************
 	else if(A.eq.9) then
 C iteration 1 Casey
-c           emc = 1
-           emc = 0.75577 + 6.31620*xtmp -31.22099*xtmp**2 + 
-	1        73.30890*xtmp**3 -83.58729*xtmp**4 + 36.42793*xtmp**5
+           emc = 1
+           emc = 1.52438 - 3.26366*xtmp + 13.78482*xtmp**2 -
+	1        26.95815*xtmp**3 + 22.72433*xtmp**4 - 6.66419*xtmp**5
 
 C Carbon********************************************************************
 	else if(A.eq.12) then
 C iteration 1 Casey
-c           emc = 1
-           emc = 0.70352 + 6.44515*xtmp -31.99850*xtmp**2 + 
-	1        75.42336*xtmp**3 -86.47596*xtmp**4 + 37.81601*xtmp**5
+           emc = 1
+           emc = 1.42308 - 2.65087*xtmp + 11.41047*xtmp**2 -
+	1        22.54747*xtmp**3 + 18.47078*xtmp**4 - 5.07537*xtmp**5
 
 C Al************************************************************************
 	else if(a.eq.27) then
 C iteration 1 Casey
-c           emc = 1
-           emc = 0.63596 + 6.59120*xtmp -32.87832*xtmp**2 + 
-	1        76.97413*xtmp**3 -88.46550*xtmp**4 + 39.04195*xtmp**5
+           emc = 1
+           emc = 1.29636 - 1.70678*xtmp + 6.49121*xtmp**2 -
+	1        11.52374*xtmp**3 + 6.07310*xtmp**4 + 0.48219*xtmp**5
 
 C Copper********************************************************************
 	else if(A.eq.64) then
 C iteration 1 Casey
-c           emc = 1
-           emc = 0.62897 + 9.34351*xtmp -46.33351*xtmp**2 + 
-	1        107.57064*xtmp**3 -122.72402*xtmp**4 + 54.02095*xtmp**5
+           emc = 1
+           emc = 1.41180 - 0.41740*xtmp - 0.41459*xtmp**2 +
+	1        5.07170*xtmp**3 - 13.84335*xtmp**4 + 9.81772*xtmp**5
 
 C Copper********************************************************************
         else if(A.eq.56) then
 C iteration 1 Casey
-      emc = 1
+           write(*,*) 'No fit for EMC on Iron.'
+           emc = 1
 
 C Gold**********************************************************************
 	else if(A.eq.197) then
 C iteration 1 Casey
-c           emc = 1
-           emc = 0.59609 + 11.06185*xtmp -54.73150*xtmp**2 + 
-	1        125.84238*xtmp**3 -142.97502*xtmp**4 + 63.04760*xtmp**5
+           emc = 1
+           emc = 1.32738 + 2.06855*xtmp - 13.01543*xtmp**2 +
+	1        33.54028*xtmp**3 - 45.36383*xtmp**4 + 23.48632*xtmp**5
 
 	else
 	   write(*,*) '** in emc_func_xem, unknown target',a
@@ -701,5 +577,34 @@ c           emc = 1
 	endif
 
 	emc_func_xem= emc
+	return
+	end
+
+	integer*4 function last_char(string)
+C+______________________________________________________________________________
+!
+! LAST_CHAR - Return the position of the last character in the string which
+! is neither a space or a tab. Returns zero for null or empty strings.
+C-______________________________________________________________________________
+
+	implicit none
+	integer*4 i
+	character*(*) string
+	character*1 sp/' '/
+	character*1 tab/'	'/
+
+	save
+
+C ============================= Executable Code ================================
+
+	last_char = 0
+!	write(*,*) 'LAST CHAR ROUTINE INPUT: ',string
+!	write(*,*) 'LAST CHAR ROUTINE SP and TAB: ',sp,tab
+	do i = 1,len(string)
+	   if (string(i:i).ne.sp.and.string(i:i).ne.tab) last_char = i
+!	write(*,*) 'LAST CHAR ROUTINE LOOP: ',string(i:i),i
+	enddo
+!	write(*,*) 'LAST CHAR ROUTINE RESULT: ',last_char
+
 	return
 	end

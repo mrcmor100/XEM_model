@@ -1,0 +1,4 @@
+#!/bin//tcsh 
+XEM_model << endofinput
+$1
+endofinput

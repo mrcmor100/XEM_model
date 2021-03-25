@@ -1,29 +1,27 @@
-  FFLAGS=  -g -C  +es +Obb1000 -K +FPZOU
-  ABSOFT=/apps/absoft/absoft-8.2/opt/absoft/
-  FABSFLAGS=-O -V -W -f -s -N1 -B108 -B100 -N90 -N22 -N2 -N113
-  INCLUDES=-I.
-  EXTRAFLAGS=-DABSOFTFORTRAN
-  FFLAGS= $(INCLUDES) $(FABSFLAGS) $(EXTRAFLAGS)
+ifeq ($(MYOS),Linux)
+#  CERN_ROOT = /apps/cernlib/i386_fc8/2005
+  FFLAGSA=-O -ffixed-line-length-132 -ff2c -fno-automatic -fdefault-real-8
+#  FFLAGSA=-O -V -W -f -s -N1 -B108 -B100 -N90 -N22 -N2 -N113
+#  INCLUDES=-I.,..,./sos,$(SH),./hrsr,./hrsl,./shms,$(Csoft)/SRC/INCLUDE
+#  INCLUDES=-I.,..,./sos,$(SH),./hrsr,./hrsl,./shms,$(Csoft)/INCLUDE
+  FFLAGS= $(INCLUDES) $(FFLAGSA)
   FFLAG1=$(FFLAGS) -c
-#  GFORTRAN :=$(ABSOFT)/bin/gfortran
-  GFORTRAN :=gfortran
-  direct=/group/c-xem2/cmorean/SCGSR/cs_model/
-#CERN_ROOT=/usr/local/cern/pro
-#CERN_ROOT=/usr/lib/cernlib/2006
-CERN_ROOT = /apps/cernlib/i386_rhel3/2003
-CERNLIBS = -L$(CERN_ROOT)/lib -lpawlib -lgraflib -lgrafX11 -lpacklib -lmathlib
+  OTHERLIBS =  -L$(CERN_ROOT)/lib $(CERNLIBS) -L/usr/lib
+  FC  := gfortran
+  F77 :=gfortran
+endif
 
-
-xemmodel:  xem_model.o nform.o bdisnew4he3.o f1f220.o ./src/constants.inc
-	gfortran -g -o XEM_model xem_model.o nform.o bdisnew4he3.o f1f220.o
+xemmodel:  xem_model.o nform.o smear4all.o f1f221.o ./src/constants.inc
+	gfortran -g -o XEM_model xem_model.o nform.o smear4all.o f1f221.o 
+	$(OTHERLIBS)
 	rm *.o
 xem_model.o: ./src/xem_model.f
 	gfortran -c -ffixed-line-length-none ./src/xem_model.f
 nform.o: ./src/nform.f
 	gfortran -c -ffixed-line-length-none ./src/nform.f
-bdisnew4he3.o: ./src/bdisnew4he3.f
-	gfortran -c -ffixed-line-length-none ./src/bdisnew4he3.f
-f1f220.o: ./src/f1f220.f
-	gfortran -c -ffixed-line-length-none ./src/f1f220.f
+smear4all.o: ./src/smear4all.f
+	gfortran -c -ffixed-line-length-none ./src/smear4all.f
+f1f221.o: ./src/f1f221.f
+	gfortran -c -ffixed-line-length-none ./src/f1f221.f
 
 
