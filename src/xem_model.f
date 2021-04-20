@@ -12,7 +12,7 @@ CAM Open input file.
       open(unit=11,status='old',file=filename)
 
 CAM Open output file.
-      filename = './output/'//rawname(1:last_char(rawname))//'_w_jfac.out'
+      filename = './output/'//rawname(1:last_char(rawname))//'.out'
       open (unit=14,status='unknown',file=filename)
 
  40   READ(11,*,IOSTAT=EOF) E0, EP, THETA, A, Z
@@ -46,7 +46,7 @@ CAM Main subroutine used in externals.
       NU  = E0 - EP
       X   = QSQ/(2*nuc_mass*NU)
       Y   = YSCALE(E0,EP,THR,A,EPS(int(A)))
-
+      write(236,*) A, Z, X, Y
       call sig_dis_calc(int(A), int(Z), E0, EP, THR, Y, sigdis_new)
       call sig_qe_calc(Y, int(A), int(Z),E0,EP, THR, X, sig_qe_new)
 
@@ -165,9 +165,13 @@ CAM JOHNS_FAC basically linear factor less than X=1
          johns_fac=max(1.,1.+y*1.4*2.5)
       elseif (a.eq.4) then
          johns_fac=max(1.,1.+y*1.4*1.75)
+      elseif (a.eq.10) then
+         johns_fac=max(1.,1.+y*1.4*2.5)
+      elseif (a.eq.11) then
+         johns_fac=max(1.,1.+y*1.4*2.5)
       elseif (a.eq.12) then
          johns_fac=max(1.,1.+y*1.4*2.5)
-         write(*,*) 'johns fac:',y, x, johns_fac
+!         write(*,*) 'johns fac:',y, x, johns_fac
       elseif ((a.eq.56).or.(a.eq.64)) then
          johns_fac=max(1.,1.+y*1.4*3)
       elseif (a.eq.197) then
@@ -183,33 +187,33 @@ CAM T. De Forest, Jr. Nuc. Phys. A392 232 (1983)
       sig_qe=sig_qe*fact*1000.
 
 CAM tail_cor applied here
-c      if(x.gt.2.0) then
-c         x_cor=2.0
-c      else
-c         x_cor=x
-c      endif
-c      if(a.eq.2) then
-c         x_low=1
-c         x_high=1.05
-c      endif
-c      if(a.gt.2) then
-c         if((a.eq.64).or.(a.eq.4).or.(a.eq.197).or.(a.eq.56)) then
-c	    x_low=1.2
-c	    x_high=1.4
-c         else
-c	    x_low=1.4
-c	    x_high=1.6
-c         endif
-c      endif
-c      corfact=1.
-c      if((x.ge.(x_low))) then   !.and.(A.eq.2)) then
-c         corfact=tail_cor(x_cor,a)
-c         if(x.lt.(x_high)) then
-c	    my_frac=(x-x_low)/(x_high-x_low)
-c            corfact=my_frac*corfact+(1.-my_frac)
-c         endif
-c         sig_qe=sig_qe*corfact
-c      endif
+      if(x.gt.2.0) then
+         x_cor=2.0
+      else
+         x_cor=x
+      endif
+      if(a.eq.2) then
+         x_low=1
+         x_high=1.05
+      endif
+      if(a.gt.2) then
+         if((a.eq.64).or.(a.eq.4).or.(a.eq.197).or.(a.eq.56)) then
+	    x_low=1.2
+	    x_high=1.4
+         else
+	    x_low=1.4
+	    x_high=1.6
+         endif
+      endif
+      corfact=1.
+      if((x.ge.(x_low))) then   !.and.(A.eq.2)) then
+         corfact=tail_cor(x_cor,a)
+         if(x.lt.(x_high)) then
+	    my_frac=(x-x_low)/(x_high-x_low)
+            corfact=my_frac*corfact+(1.-my_frac)
+         endif
+         sig_qe=sig_qe*corfact
+      endif
       end
 
 !---------------------------------------------------------------------
@@ -472,6 +476,16 @@ c-------------------------------------------------------------------------------
         cc = 0.0125252624899601
         dd = -0.101843839213646
         aa = 0.674455752091906
+      elseif (a.eq.10) then
+        bb = 0.222436834975864
+        cc = 0.00769270345172033
+        dd = -0.060282702596254
+        aa = 0.840262866196151
+      elseif (a.eq.11) then
+        bb = 0.222436834975864
+        cc = 0.00769270345172033
+        dd = -0.060282702596254
+        aa = 0.840262866196151
       elseif (a.eq.12) then
         bb = 0.222436834975864
         cc = 0.00769270345172033
@@ -536,6 +550,20 @@ C iteration 1 Casey
            emc = 1
            emc = 1.52438 - 3.26366*xtmp + 13.78482*xtmp**2 -
 	1        26.95815*xtmp**3 + 22.72433*xtmp**4 - 6.66419*xtmp**5
+
+C Carbon********************************************************************
+	else if(A.eq.10) then
+C iteration 1 Casey
+           emc = 1
+           emc = 1.42308 - 2.65087*xtmp + 11.41047*xtmp**2 -
+	1        22.54747*xtmp**3 + 18.47078*xtmp**4 - 5.07537*xtmp**5
+
+C Carbon********************************************************************
+	else if(A.eq.11) then
+C iteration 1 Casey
+           emc = 1
+           emc = 1.42308 - 2.65087*xtmp + 11.41047*xtmp**2 -
+	1        22.54747*xtmp**3 + 18.47078*xtmp**4 - 5.07537*xtmp**5
 
 C Carbon********************************************************************
 	else if(A.eq.12) then
