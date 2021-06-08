@@ -46,9 +46,15 @@ CAM Main subroutine used in externals.
       NU  = E0 - EP
       X   = QSQ/(2*nuc_mass*NU)
       Y   = YSCALE(E0,EP,THR,A,EPS(int(A)))
+      !Check if Y is right kinda..
+      if(Y.lt.1.E19) then 
+         call sig_dis_calc(int(A), int(Z), E0, EP, THR, Y, sigdis_new)
+         call sig_qe_calc(Y, int(A), int(Z),E0,EP, THR, X, sig_qe_new)
+      else
+         sigdis_new = 0.0
+         sig_qe_new = 0.0
+      endif
       write(236,*) A, Z, X, Y
-      call sig_dis_calc(int(A), int(Z), E0, EP, THR, Y, sigdis_new)
-      call sig_qe_calc(Y, int(A), int(Z),E0,EP, THR, X, sig_qe_new)
 
  2002 format (10(E13.5,1x))
       if(y.ne.0) then
@@ -119,13 +125,13 @@ c            sigdis = sigdis*corfac
 c         endif
 
       else if(A.eq.1) then
-         call F1F2IN21(dble(Z),dble(A), QSQ, WSQ, F1, F2)
-         W1 = F1/.93827231D0
-         W2 = F2/nu
-         tan_2 = tan(thr/2)**2
+       call F1F2IN21(dble(Z),dble(A), QSQ, WSQ, F1, F2)
+       W1 = F1/.93827231D0
+       W2 = F2/nu
+       tan_2 = tan(thr/2)**2
 CAM    Mott cross section
-         sig_mott = 0.3893857*(alpha*cos(thr/2))**2/(2*e*sin(thr/2)**2)**2
-         sigdis =  sig_mott*(W2+2.0*W1*tan_2)*1.e-2*1.e9
+       sig_mott = 0.3893857*(alpha*cos(thr/2))**2/(2*e*sin(thr/2)**2)**2
+       sigdis =  sig_mott*(W2+2.0*W1*tan_2)*1.e-2*1.e9
       endif
       end
 
@@ -243,6 +249,8 @@ CAM Function to determine Y.  Refer to John A's thesis
       if (rad.ge.0) then
          YSCALE = (-BG+SQRT(BG**2-4*AG*CG))/(2*AG)
          backup = (-BG-SQRT(BG**2-4*AG*CG))/(2*AG)
+      else
+         YSCALE = 1.E20
       endif
 
       RETURN
