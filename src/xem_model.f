@@ -119,10 +119,10 @@ CAM           emc_corr = emc_func_xem(x,a)
 
 CAM Make a correction to the high_x tail.
          corfac=1.
-c         if ((x.gt.0.9)) then
-c            call  dis_highx_cor(a,x,corfac)
-c            sigdis = sigdis*corfac
-c         endif
+         if ((x.gt.0.9)) then
+            call  dis_highx_cor(a,x,corfac)
+            sigdis = sigdis*corfac
+         endif
 
       else if(A.eq.1) then
        call F1F2IN21(dble(Z),dble(A), QSQ, WSQ, F1, F2)
