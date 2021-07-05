@@ -1,0 +1,6 @@
+*~
+#*
+output/*
+input/*
+XEM_model
+nb/.ipynb_checkpoints/*
