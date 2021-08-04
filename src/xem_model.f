@@ -1,32 +1,89 @@
-      program run_xem_model
-      implicit none
-
-      integer eof
-      character*80 rawname, filename, ofilename
-      real*8 E0, EP, THETA, A, Z, dis_XS, qe_XS
-      integer*4	last_char
-
-      read(*,1968) rawname
- 1968 format(a)
-CAM Open input file.
-      filename = 'input/'//rawname(1:last_char(rawname))//'.inp'
-      open(unit=11,status='old',file=filename)
-
-CAM Open output file.
-      filename = './output/'//rawname(1:last_char(rawname))//'.out'
-      open (unit=14,status='unknown',file=filename)
-
- 40   READ(11,*,IOSTAT=EOF) E0, EP, THETA, A, Z
-      if(eof.ge.0) then
-        call xem_model(E0, EP, THETA, A, Z, dis_XS, qe_XS)
-        goto 40
-      endif !if file has stuff
-      close(11);
-      end
+CAM      program run_xem_model
+CAM      implicit none
+CAM      integer eof
+CAM      character*80 rawname, filename, ofilename
+CAM      real*8 E0, EP, THETA, A, Z, dis_XS, qe_XS
+CAM      integer*4	last_char
+CAM
+CAM      read(*,1968) rawname
+CAM 1968 format(a)
+CAMCAM Open input file.
+CAM      filename = 'input/'//rawname(1:last_char(rawname))//'.inp'
+CAM      open(unit=11,status='old',file=filename)
+CAM
+CAMCAM Open output file.
+CAM      filename = './output/'//rawname(1:last_char(rawname))//'.out'
+CAM      open (unit=14,status='unknown',file=filename)
+CAM
+CAM 40   READ(11,*,IOSTAT=EOF) E0, EP, THETA, A, Z
+CAM      if(eof.ge.0) then
+CAM        call xem_model(E0, EP, THETA, A, Z, dis_XS, qe_XS)
+CAM        goto 40
+CAM      endif !if file has stuff
+CAM      close(11);
+CAM      end
+CAM
 
 !-----------------------------------------------------------------------------
 CAM Main subroutine used in externals.
 !-----------------------------------------------------------------------------
+      subroutine SIGMODEL_CALC(E0in,EPin,THETAin,iZ,
+     >        iA,avgM,DUM1,DUM2,SIGMApass,XFLAG,FACT)
+      implicit none
+      include 'constants_dble.inc'
+      REAL E0in, EPin, THETAin
+      REAL DUM1, DUM2, fact, avgM, SIGMApass
+      real*8 sigma_send
+      real*8 E0, EP, THETA, QSQ, NU, THR
+      real*8 Y, A, Z, X, N
+      real*8 INNP, INNT
+      real*8 sig_qe_new, sigdis_new
+      real*8 YSCALE
+      integer iZ, iA, xflag
+
+      
+      include 'model_constants.inc'
+
+      E0 = real(E0in,8)
+      EP = real(EPin,8)
+      THETA = real(THETAin,8)
+      A = dble(iA)
+      Z = dble(iZ)
+
+      INNT = 30
+      INNP = 30
+      N = A - Z
+      THR = THETA*pi/180.
+      QSQ = 4*E0*EP*(SIN(THR/2))**2
+      NU  = E0 - EP
+      X   = QSQ/(2*nuc_mass*NU)
+      Y   = YSCALE(E0,EP,THR,A,EPS(iA))
+
+      sig_qe_new = 0.0
+      sigdis_new = 0.0
+c      write(*,*) 'Y: ', Y
+      IF(Y.lt.1.E19) then
+         if((XFLAG.eq.1).or.(XFLAG.eq.2)) then
+            call sig_qe_calc(Y,iA, iZ,E0,EP, THR, X, sig_qe_new)
+            sig_qe_new = sig_qe_new*1000000.0
+         endif
+         if((XFLAG.eq.1).or.(XFLAG.eq.3)) then
+            call sig_dis_calc(iA, iZ, E0, EP, THR, Y, sigdis_new)
+            sigdis_new = sigdis_new
+         endif
+      ELSE
+         sigdis_new = 0.0
+         sig_qe_new = 0.0
+      ENDIF
+c 2003 format (2(E13.5,1x))
+c      write(14,2003) sigdis_new,sig_qe_new
+      sigma_send = sig_qe_new + sigdis_new
+      SIGMApass = real(sigma_send,4)
+      return
+      end
+
+C____________________________________________________________________________
+
       subroutine xem_model(E0, EP, THETA, A, Z, sigdis_new,sig_qe_new)
       implicit none
 
