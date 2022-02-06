@@ -1,0 +1,3 @@
+#!/bin/bash
+?
+for i in input/*m1.inp; do tim=${i:6}; timmy=${tim%.*p}; ./run_XEM_model $timmy; done
