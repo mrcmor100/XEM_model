@@ -1,29 +1,3 @@
-CAM      program run_xem_model
-CAM      implicit none
-CAM      integer eof
-CAM      character*80 rawname, filename, ofilename
-CAM      real*8 E0, EP, THETA, A, Z, dis_XS, qe_XS
-CAM      integer*4	last_char
-CAM
-CAM      read(*,1968) rawname
-CAM 1968 format(a)
-CAMCAM Open input file.
-CAM      filename = 'input/'//rawname(1:last_char(rawname))//'.inp'
-CAM      open(unit=11,status='old',file=filename)
-CAM
-CAMCAM Open output file.
-CAM      filename = './output/'//rawname(1:last_char(rawname))//'.out'
-CAM      open (unit=14,status='unknown',file=filename)
-CAM
-CAM 40   READ(11,*,IOSTAT=EOF) E0, EP, THETA, A, Z
-CAM      if(eof.ge.0) then
-CAM        call xem_model(E0, EP, THETA, A, Z, dis_XS, qe_XS)
-CAM        goto 40
-CAM      endif !if file has stuff
-CAM      close(11);
-CAM      end
-CAM
-
 !-----------------------------------------------------------------------------
 CAM Main subroutine used in externals.
 !-----------------------------------------------------------------------------
@@ -40,7 +14,7 @@ CAM Main subroutine used in externals.
       real*8 sig_qe_new, sigdis_new
       real*8 YSCALE
       integer iZ, iA, xflag
-
+      logical first/.true./
       
       include 'model_constants.inc'
 
@@ -49,6 +23,11 @@ CAM Main subroutine used in externals.
       THETA = real(THETAin,8)
       A = dble(iA)
       Z = dble(iZ)
+
+      if(first) then
+         first=.false.
+         call load_parameters(A, Z)
+      endif
 
       INNT = 30
       INNP = 30
@@ -77,58 +56,60 @@ c      write(*,*) 'Y: ', Y
       ENDIF
 c 2003 format (2(E13.5,1x))
 c      write(14,2003) sigdis_new,sig_qe_new
+      !Used to pass to standalone code.  DUM1 and DUM2 not used in externals
+      DUM1 = Y
+      DUM2 = X
       sigma_send = sig_qe_new + sigdis_new
       SIGMApass = real(sigma_send,4)
+
+      !Incomplete write_corrections.  Needs internal flag as well
+      !call write_corrections()
+
       return
       end
 
 C____________________________________________________________________________
-
-      subroutine xem_model(E0, EP, THETA, A, Z, sigdis_new,sig_qe_new)
+      subroutine xem_model(E0, EP, THETA, A, Z, Ypass, Xpass, 
+     >     sigdis_pass, sigqe_pass, reload_params)
       implicit none
 
-      COMMON /Y_SCALING/ ag, bg, bigB, f0, alpha1, pfermi, eps
-      real*8 ag, bg, bigB, f0, alpha1, pfermi, eps
+!     Parameters passed from/to standalone code
+      real*8 E0, EP, THETA, A, Z
+      real*8 sigdis_pass, sigqe_pass, Ypass, Xpass
+      logical reload_params
+      !Parameters to pass to SIGMODEL_CALC
+      REAL E0_smc, EP_smc, THETA_smc, Y_smc, X_smc
+      REAL FACT, avgM, sigqe_smc, sigdis_smc
+      INTEGER XFLAG, A_smc, Z_smc
 
-      include 'constants_dble.inc'
-      real*8 E0, EP, THETA, QSQ, NU, THR
-      real*8 Y, A, Z, X, N
-      real*8 INNP, INNT
-      real*8 sig_qe_new, sigdis_new
-      real*8 YSCALE
-!      include 'model_constants.inc'
-      logical first/.true./
-      if(first) then
-         first=.false.
+!     Load parameters when input from user table
+      if(reload_params) then
          call load_parameters(A, Z)
       endif
-      INNT = 30
-      INNP = 30
 
-      N = A - Z
-      THR = THETA*pi/180.
-      QSQ = 4*E0*EP*(SIN(THR/2))**2
-      NU  = E0 - EP
-      X   = QSQ/(2*nuc_mass*NU)
-      Y   = YSCALE(E0,EP,THR,A,EPS)
-      !Check if Y is right kinda..
-      if(Y.lt.1.E19) then 
-         call sig_dis_calc(int(A), int(Z), E0, EP, THR, Y, sigdis_new)
-         call sig_qe_calc(Y, int(A), int(Z),E0,EP, THR, X, sig_qe_new)
-      else
-         sigdis_new = 0.0
-         sig_qe_new = 0.0
-      endif
-c      write(236,*) A, Z, X, Y
+!Convert everything to REAL to send to SIGMODEL_CALC
+      E0_smc=REAL(E0)
+      EP_smc=REAL(EP)
+      THETA_smc=REAL(THETA)
+      Z_smc=INT(Z)
+      A_smc=INT(A)
+      Y_smc=0.0
+      X_smc=0.0
+      sigqe_smc=0.0
+      sigdis_smc=0.0
+      
+      XFLAG = 2                 !QE
+      CALL SIGMODEL_CALC(E0_smc, EP_smc, THETA_smc, Z_smc,
+     >     A_smc, avgM, Y_smc, X_smc, sigqe_smc, XFLAG, FACT)
+      XFLAG = 3                 !DIS
+      CALL SIGMODEL_CALC(E0_smc, EP_smc, THETA_smc, Z_smc,
+     >     A_smc, avgM, Y_smc, X_smc, sigdis_smc, XFLAG, FACT)
 
- 2002 format (10(E13.5,1x))
-      if(y.ne.0) then
-         write(14,2002) y,a,z, THETA,EP,x ,sigdis_new,sig_qe_new
-      else       !comment out under normal circumstances
-         write(14,2002) y,a,z, THETA,EP,x ,sigdis_new,sig_qe_new
-      endif
-
-      call write_corrections()
+!Convert everything back to DBLE to send to standalone code.
+      Ypass=DBLE(Y_smc)
+      Xpass=DBLE(X_smc)
+      sigqe_pass=DBLE(sigqe_smc)
+      sigdis_pass=DBLE(sigdis_smc)
 
       return
       end

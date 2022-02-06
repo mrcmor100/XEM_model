@@ -11,10 +11,12 @@ ifeq ($(MYOS),Linux)
   F77 :=gfortran
 endif
 
-xemmodel:  xem_model.o nform.o smear4all.o f1f221.o sig_bar_df.o ./src/constants.inc
-	gfortran -g -o XEM_model xem_model.o nform.o smear4all.o f1f221.o sig_bar_df.o
+xemmodel:  xem_model.o nform.o smear4all.o f1f221.o sig_bar_df.o xem_standalone.o ./src/constants.inc
+	gfortran -g -o XEM_model xem_model.o nform.o smear4all.o f1f221.o sig_bar_df.o xem_standalone.o
 	$(OTHERLIBS)
 	rm *.o
+xem_standalone.o: ./src/xem_standalone.f
+	gfortran -c -ffixed-line-length-none ./src/xem_standalone.f
 xem_model.o: ./src/xem_model.f
 	gfortran -c -ffixed-line-length-none ./src/xem_model.f
 nform.o: ./src/nform.f
