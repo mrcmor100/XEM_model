@@ -7,7 +7,7 @@
       real*8 E0, EP, THETA, A, Z
       !Passed from xem_model to run_xem_model
       real*8 Y, X, dis_XS, qe_XS
-      logical reload_params/.true./
+      logical reload_params/.false./
       integer*4	last_char
 
       read(*,1968) rawname

@@ -5,6 +5,10 @@ CAM Main subroutine used in externals.
      >        iA,avgM,DUM1,DUM2,SIGMApass,XFLAG,FACT)
       implicit none
       include 'constants_dble.inc'
+
+      COMMON /Y_SCALING/ ag, bg, bigB, f0, alpha1, pfermi, eps
+      real*8 ag, bg, bigB, f0, alpha1, pfermi, eps
+
       REAL E0in, EPin, THETAin
       REAL DUM1, DUM2, fact, avgM, SIGMApass
       real*8 sigma_send
@@ -16,8 +20,6 @@ CAM Main subroutine used in externals.
       integer iZ, iA, xflag
       logical first/.true./
       
-      include 'model_constants.inc'
-
       E0 = real(E0in,8)
       EP = real(EPin,8)
       THETA = real(THETAin,8)
@@ -36,7 +38,7 @@ CAM Main subroutine used in externals.
       QSQ = 4*E0*EP*(SIN(THR/2))**2
       NU  = E0 - EP
       X   = QSQ/(2*nuc_mass*NU)
-      Y   = YSCALE(E0,EP,THR,A,EPS(iA))
+      Y   = YSCALE(E0,EP,THR,A,EPS)
 
       sig_qe_new = 0.0
       sigdis_new = 0.0
@@ -81,11 +83,12 @@ C____________________________________________________________________________
       REAL E0_smc, EP_smc, THETA_smc, Y_smc, X_smc
       REAL FACT, avgM, sigqe_smc, sigdis_smc
       INTEGER XFLAG, A_smc, Z_smc
-
+      logical load_params/.true./
 !     Load parameters when input from user table
-      if(reload_params) then
-         call load_parameters(A, Z)
-      endif
+!      if(reload_params.or.load_params) then
+!         call load_parameters(A, Z)
+!         load_params=.false.
+!      endif
 
 !Convert everything to REAL to send to SIGMODEL_CALC
       E0_smc=REAL(E0)
@@ -165,7 +168,7 @@ CAM Make a correction to the high_x tail.
             call  dis_highx_cor(a,x,dhxcorfac)
             sigdis = sigdis*dhxcorfac
          endif
-
+         
       else if(A.eq.1) then
        call F1F2IN21(dble(Z),dble(A), QSQ, WSQ, F1, F2)
        W1 = F1/.93827231D0

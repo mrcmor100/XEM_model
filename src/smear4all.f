@@ -60,6 +60,10 @@
 	  ama_1 = 2.8094
 	elseif (aa.eq.9) then
 	  ama_1 = 7.5402
+	elseif (aa.eq.10) then
+	  ama_1 = 10.25553-2.0*0.938272
+	elseif (aa.eq.11) then
+	  ama_1 =  10.25553-0.938272
 	elseif (aa.eq.12) then
 	  ama_1 = 10.25553
 	elseif (aa.eq.27) then
